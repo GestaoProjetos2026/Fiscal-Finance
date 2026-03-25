@@ -102,10 +102,7 @@ Estrutura de dados — Produto
 ### 8. Definição de Pronto (DoD)
 
 - Código revisado por outro membro do Squad.
-- Testes unitários com >80% de cobertura.
-- Documentação da API atualizada (Swagger/OpenAPI).
-- Pipeline de CI/CD passando.
-- Webhooks validados por MOD2 e MOD3.
+- Funções críticas (criar, validar SKU, remover) com ao menos 1 teste unitário funcional.
 
 ---
 
