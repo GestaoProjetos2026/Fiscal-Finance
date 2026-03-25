@@ -101,8 +101,8 @@ Estrutura de dados — Produto
 
 ### 8. Definição de Pronto (DoD)
 
-- Código revisado por outro membro do Squad.
-- Funções críticas (criar, validar SKU, remover) com ao menos 1 teste unitário funcional.
+- [ ] Código revisado por outro membro do Squad.
+- [ ] Funções críticas (criar, validar SKU, remover) com ao menos 1 teste unitário funcional.
 
 ---
 
@@ -178,6 +178,12 @@ Como Sistema Fiscal (MOD3), eu quero registrar automaticamente a saída do estoq
 - É possível registrar SAÍDA de X unidades por SKU.
 - Saída maior que o saldo é bloqueada com mensagem de erro.
 - Saldo é atualizado imediatamente após cada movimentação.
+  
+### 8. Definição de Pronto (DoD)
+- [ ] Código revisado via Pull Request.
+- [ ] Testes nas funções de entrada, saída e bloqueio de saldo insuficiente.
+- [ ] Endpoints documentados em README_API.md.
+- [ ] Testado via Postman/Insomnia.
 
 ---
 
