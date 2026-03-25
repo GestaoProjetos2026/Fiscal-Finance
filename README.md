@@ -114,6 +114,8 @@ Problema: Sem controle de estoque em tempo real, vendas são confirmadas sem pro
 
 Proposta de Valor: Registrar cada entrada e saída de produto em tempo real, mantendo o saldo correto e impedindo vendas de itens indisponíveis.
 
+Oportunidade de Venda: Controle de estoque é um dos serviços mais procurados por pequenos comerciantes. Pode ser vendido separadamente do módulo fiscal como uma solução de gestão de inventário, sem exigir os outros módulos.
+
 ---
 
 ### 2. Personas
