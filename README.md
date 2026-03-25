@@ -85,6 +85,8 @@ Estrutura de dados — Produto
 
 "Como Contador, eu quero consultar a alíquota de imposto de cada produto para validar os cálculos fiscais sem depender de planilhas paralelas."
 
+"Como Estoquista, eu quero buscar um produto pelo nome para confirmar que ele existe no catálogo antes de registrar uma entrada no estoque."
+
 ---
 
 ### 7. Critérios de Aceite
