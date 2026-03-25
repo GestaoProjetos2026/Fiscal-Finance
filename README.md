@@ -195,6 +195,8 @@ Problema: Calcular impostos manualmente por venda é lento e sujeito a erro, ger
 
 Proposta de Valor: Dado um conjunto de produtos/serviços vendidos, o módulo calcula automaticamente os impostos e gera um objeto estruturado (JSON) representando a "intenção de nota fiscal".
 
+Oportunidade de Venda: A calculadora fiscal pode ser vendida como um componente de API para sistemas já existentes que precisam pré-calcular impostos antes de emitir nota. Serve como "trial" do módulo de emissão completo.
+
 Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto à SEFAZ / Prefeitura é escopo de versões futuras.
 
 ---
