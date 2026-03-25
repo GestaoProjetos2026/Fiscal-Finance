@@ -214,8 +214,9 @@ Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto
 ### 3. Especificação Técnica e Integração
 
 Endpoints de API
-POST /v1/fisc/invoice/intent -> Gera intenção de nota fiscal
-GET /v1/fisc/invoice/{id} -> Consulta nota por ID
+> POST /v1/fisc/invoice/intent    -> Calcula impostos e retorna rascunho (sem salvar)
+> POST /v1/fisc/invoice/confirm   -> Confirma nota, baixa estoque e lança financeiro
+> GET  /v1/fisc/invoice/{id}      -> Consulta nota confirmada por ID
 
 Webhooks disparados por este módulo
 - invoice.generated: Payload { id, total_bruto, total_imposto, total_final, data_emissao }. Consumidores: MOD2 (baixa de estoque), MOD4 (entrada financeira).
