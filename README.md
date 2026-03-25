@@ -16,12 +16,11 @@ Versão: 1.0 · Sprint: 1 · Status: Em revisão · Data: 09/03/2026
 ## FISC-MOD1 — Cadastro de Produtos
 
 ### 1. Visão Geral e Proposta de Valor
+Problema: Sem um catálogo centralizado ("Single Source of Truth"), o estoque opera às cegas sobre o preço, e o setor fiscal não sabe qual alíquota aplicar. O uso de planilhas paralelas entre setores gera inconsistência de dados, furos no caixa e erros na tributação.
 
-Problema: Sem cadastro centralizado, o estoque não conhece o preço do produto e o setor fiscal não sabe qual alíquota aplicar — cada área trabalha com sua própria planilha, gerando inconsistências.
+Proposta de Valor: Centralizar os metadados de cada item (SKU, descrição, precificação e tributação) em um único registro imutável que alimenta automaticamente as operações de estoque e o motor de cálculo fiscal.
 
-Proposta de Valor: Centralizar as informações de cada produto (código, nome, preço e imposto) em um único registro que alimenta automaticamente o estoque e o cálculo fiscal.
-
-Oportunidade de Venda: Qualquer negócio que vende produtos físicos precisa de um catálogo centralizado antes de qualquer outra coisa. Este módulo é a base que desbloqueia todos os demais — sem ele, estoque e fiscal não funcionam. É o ponto de entrada natural de qualquer cliente novo.
+Oportunidade de Venda: Todo negócio físico precisa de um catálogo estruturado antes de operar. Como módulo isolado (SaaS), atua como um PIM (Product Information Management) básico. É o gatilho de entrada do cliente: sem ele, o sistema não fatura e não movimenta.
 
 ---
 
