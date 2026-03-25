@@ -139,10 +139,10 @@ Oportunidade de Venda: Controle de estoque é um dos serviços mais procurados p
 
 ### 4. Requisitos Não-Funcionais (RNF)
 
-- RNF01 Atomicidade: Saída de estoque e confirmação de venda ocorrem juntas. Se a venda falhar, o estoque não é alterado.
+- RNF01 Atomicidade: Saída de estoque ocorre dentro de uma transação de banco de dados. Se qualquer etapa falhar, a transação é revertida (ROLLBACK). Isso é suficiente para o ambiente local e implementável em PHP com PDO Transactions.
 - RNF02 Rastreabilidade: Movimentações são imutáveis após registro — correções via estorno.
 - RNF03 Performance: Consulta de saldo deve responder em menos de 300ms.
-- RNF04 Escalabilidade: Operações de entrada/saída usam lock otimista por SKU para evitar condição de corrida.
+- RNF04 Escalabilidade: Conflitos de concorrência são tratados via `SELECT FOR UPDATE` (lock pessimista) no banco de dados durante operações de saída. Suficiente para o volume de uso esperado.
 
 ---
 
