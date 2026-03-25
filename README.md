@@ -48,8 +48,9 @@ Oportunidade de Venda: Qualquer negócio que vende produtos físicos precisa de 
 
 - RNF01 Segurança: Apenas usuários autenticados podem criar, editar ou remover produtos. Dados isolados por empresa (tenant).
 - RNF02 Integridade: O SKU deve ser único em todo o sistema — sem duplicação possível.
-- RNF03 Performance: Listagem de até 10.000 produtos deve retornar em menos de 1 segundo.
-- RNF04 Escalabilidade: O serviço deve suportar leituras em alta concorrência via cache (Redis/similar). Gravações via fila para evitar conflitos de SKU em múltiplas instâncias.
+- RNF03 Performance: Listagem completa deve retornar em tempo aceitável para o usuário (< 3 segundos no ambiente local). Em produção, o objetivo é < 1 segundo via indexação do banco.
+- RNF04 Escalabilidade: Conflitos de SKU são prevenidos via `UNIQUE constraint` no banco de dados. Para o ambiente local de desenvolvimento, isso é suficiente. Escalabilidade horizontal (Redis/filas) é escopo de versões futuras.
+
 
 ---
 
