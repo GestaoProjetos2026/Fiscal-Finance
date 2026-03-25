@@ -25,10 +25,11 @@ Oportunidade de Venda: Todo negócio físico precisa de um catálogo estruturado
 ---
 
 ### 2. Personas
+Lojista / Gerente de Operações: Responsável por manter o catálogo atualizado, definindo preços e cadastrando novos itens.
 
-- Lojista / Gerente: Cadastrar, editar e remover produtos do catálogo.
-- Estoquista: Consultar produtos antes de registrar movimentações.
-- Contador: Verificar a alíquota de imposto de cada produto.
+Estoquista: Consulta as especificações do produto (por nome ou SKU) antes de registrar movimentações físicas.
+
+Contador / Analista Fiscal: Valida e audita as alíquotas de impostos atreladas a cada SKU para garantir conformidade legal.
 
 ---
 
