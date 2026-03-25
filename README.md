@@ -96,9 +96,9 @@ JSON
 
 ### 6. User Stories
 
-"Como Lojista, eu quero cadastrar produtos para organizar meu catálogo e garantir que estoque e fiscal usem sempre as mesmas informações."
+"Como Lojista, eu quero cadastrar e gerenciar produtos de forma centralizada para que meu estoque e meu setor fiscal utilizem sempre a mesma base de dados."
 
-"Como Contador, eu quero consultar a alíquota de imposto de cada produto para validar os cálculos fiscais sem depender de planilhas paralelas."
+"Como Contador, eu quero auditar a alíquota de imposto atrelada a cada SKU para garantir que as notas fiscais sejam geradas sem erros tributários."
 
 ---
 
