@@ -34,13 +34,17 @@ Contador / Analista Fiscal: Valida e audita as alíquotas de impostos atreladas 
 ---
 
 ### 3. Requisitos Funcionais (RF)
+RF01: Criação de Produto: O sistema deve permitir o cadastro de um novo produto exigindo SKU (alfanumérico, único), Nome, Preço Base (monetário, > 0) e Alíquota de Imposto (percentual, 0 a 100).
 
-- RF01 Criar produto: Cadastrar produto com SKU (único), Nome, Preço Base (R$) e Alíquota de Imposto (%).
-- RF02 Listar produtos: Exibir todos os produtos cadastrados.
-- RF03 Buscar produto: Localizar produto pelo SKU ou pelo Nome.
-- RF04 Editar produto: Alterar Nome, Preço Base e Alíquota. O SKU não pode ser alterado.
-- RF05 Remover produto: Remover produto apenas se não houver movimentações de estoque associadas.
-- RF06 Validar SKU único: Rejeitar cadastro de produto com SKU já existente, com mensagem de erro.
+RF02: Listagem Paginada: O sistema deve exibir o catálogo de produtos com suporte a paginação (ex: 50 itens por página) e ordenação.
+
+RF03: Busca Dinâmica: Deve ser possível localizar um produto através de uma busca por correspondência exata de SKU ou correspondência parcial de Nome.
+
+RF04: Edição Restrita: O sistema deve permitir a alteração de Nome, Preço Base e Alíquota. O campo SKU atua como chave de negócio e não pode ser alterado após a criação.
+
+RF05: Deleção Lógica (Soft Delete) e Validação: O sistema só pode inativar/remover um produto se o módulo de Estoque (MOD2) confirmar que não há movimentações atreladas a ele. Produtos recém-cadastrados iniciam com saldo de estoque igual a 0.
+
+RF06: Prevenção de Duplicidade: Rejeitar a criação de produtos com um SKU já existente no mesmo Tenant, retornando erro claro ao usuário.
 
 ---
 
