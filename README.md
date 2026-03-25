@@ -59,27 +59,37 @@ Escalabilidade: O banco de dados deve estar preparado para alto volume de leitur
 
 ---
 
-### 5. Especificação Técnica e Integração
+### 5. Especificação Técnica e Integração Endpoints de API (RESTful):
 
-Endpoints de API (referência para Sprint 2)
+POST /v1/fisc/products (Retorna 201 Created)
 
-POST /v1/fisc/products -> Cria produto
-GET /v1/fisc/products -> Lista produtos
-GET /v1/fisc/products/{sku} -> Busca por SKU
-PUT /v1/fisc/products/{sku} -> Atualiza produto
-DELETE /v1/fisc/products/{sku} -> Remove produto
+GET /v1/fisc/products?page=1&limit=50 (Retorna 200 OK)
 
-Webhooks disparados por este módulo
-- product.created: Payload { sku, nome, preco_base, aliquota_imposto }. Consumidores: MOD2 (Estoque), MOD3 (Fiscal).
-- product.updated: Payload { sku, campos_alterados }. Consumidores: MOD2, MOD3.
-- product.deleted: Payload { sku }. Consumidores: MOD2 (para invalidar cache de saldo).
+GET /v1/fisc/products/{sku} (Retorna 200 OK ou 404 Not Found)
 
-Estrutura de dados — Produto
+PUT /v1/fisc/products/{sku} (Retorna 200 OK)
+
+DELETE /v1/fisc/products/{sku} (Retorna 204 No Content ou 409 Conflict se houver estoque)
+
+Webhooks / Eventos Disparados:
+
+product.created: Notifica criação. Consumidores: MOD2 (iniciar ledger de saldo zerado).
+
+product.updated: Notifica alteração de preço/imposto. Consumidores: MOD3 (atualizar regras futuras).
+
+product.deleted: Notifica inativação. Consumidores: MOD2.
+
+Diagrama de Dados (JSON Payload):
+
+JSON
+
 {
-"sku": "CAN-AZUL-001",
-"nome": "Caneta Azul BIC",
-"preco_base": 2.50,
-"aliquota_imposto": 0.12
+  "sku": "CAN-AZUL-001",
+  "nome": "Caneta Azul BIC",
+  "preco_base": 2.50,
+  "aliquota_imposto": 12.00,
+  "status": "active",
+  "created_at": "2026-03-09T10:00:00Z"
 }
 
 ---
