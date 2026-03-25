@@ -49,11 +49,13 @@ RF06: Prevenção de Duplicidade: Rejeitar a criação de produtos com um SKU j�
 ---
 
 ### 4. Requisitos Não-Funcionais (RNF)
+Segurança (Isolamento multitenant): Todas as consultas e gravações devem obrigatoriamente filtrar pelo tenant_id (ID da empresa) extraído do token JWT gerado pelo [CORE]. Um cliente nunca pode ver o produto de outro.
 
-- RNF01 Segurança: Apenas usuários autenticados podem criar, editar ou remover produtos. Dados isolados por empresa (tenant).
-- RNF02 Integridade: O SKU deve ser único em todo o sistema — sem duplicação possível.
-- RNF03 Performance: Listagem de até 10.000 produtos deve retornar em menos de 1 segundo.
-- RNF04 Escalabilidade: O serviço deve suportar leituras em alta concorrência via cache (Redis/similar). Gravações via fila para evitar conflitos de SKU em múltiplas instâncias.
+Integridade (Database): O campo SKU deve ter uma restrição de UNIQUE INDEX no banco de dados, combinada com o tenant_id.
+
+Performance: A listagem e a busca de produtos (até 10.000 registros) devem retornar os dados na API em menos de 200ms (p95).
+
+Escalabilidade: O banco de dados deve estar preparado para alto volume de leituras, permitindo futura implementação de cache (ex: Redis) para SKUs muito acessados pelo módulo Fiscal.
 
 ---
 
