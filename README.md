@@ -168,6 +168,8 @@ Webhooks disparados por este módulo
 
 "Como Lojista, eu quero consultar o histórico de movimentações de um produto para entender o que aconteceu com o meu estoque."
 
+Como Sistema Fiscal (MOD3), eu quero registrar automaticamente a saída do estoque ao confirmar uma nota para que o inventário sempre reflita as vendas realizadas.
+
 ---
 
 ### 7. Critérios de Aceite
