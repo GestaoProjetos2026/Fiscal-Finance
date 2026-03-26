@@ -379,7 +379,13 @@ Transacao
 - [ ] Testado via Postman/Insomnia: registrar entrada → registrar despesa → consultar saldo → ver extrato.
 
 
-### 4. Definição de Pronto (DoD) Geral
+### Definição de Pronto (DoD) Geral
+
+- [ ] Todos os módulos (MOD1-MOD4) com código revisado via Pull Request.
+- [ ] Funções críticas de cada módulo com testes unitários.
+- [ ] Endpoints de todos os módulos documentados (Swagger ou README_API.md).
+- [ ] Fluxo end-to-end testado: Cadastrar produto → dar entrada em estoque → gerar nota → verificar fluxo de caixa.
+- [ ] (Condicional ao Squad 5) Pipeline de CI/CD configurado e passando.
 
 - Código revisado por outro membro do Squad.
 - Testes unitários com >80% de cobertura.
