@@ -217,10 +217,10 @@ Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto
 
 ### 4. Requisitos Não-Funcionais (RNF)
 
-- RNF01 Precisão:** Cálculos de imposto devem usar `DECIMAL` no banco (nunca `float`) para evitar erros de ponto flutuante em valores monetários.
-- RNF02 Segurança:** Apenas usuários autenticados podem gerar ou confirmar notas. A autenticação é fornecida pelo Squad 1 (Core Engine & Auth).
-- RNF03 Idempotência:** Uma nota no status "rascunho" pode ser recalculada quantas vezes necessário. Uma nota confirmada é imutável.
-- RNF04 Performance:** O cálculo de impostos (RF02/RF03) deve retornar em menos de 500ms para notas com até 50 itens, no ambiente local.
+- RNF01 Precisão: Cálculos de imposto devem usar `DECIMAL` no banco (nunca `float`) para evitar erros de ponto flutuante em valores monetários.
+- RNF02 Segurança: Apenas usuários autenticados podem gerar ou confirmar notas. A autenticação é fornecida pelo Squad 1 (Core Engine & Auth).
+- RNF03 Idempotência: Uma nota no status "rascunho" pode ser recalculada quantas vezes necessário. Uma nota confirmada é imutável.
+- RNF04 Performance: O cálculo de impostos (RF02/RF03) deve retornar em menos de 500ms para notas com até 50 itens, no ambiente local.
 
 
 ---
@@ -324,12 +324,20 @@ Oportunidade de Venda: Fluxo de caixa simples é um dos produtos mais vendidos p
 - RF01 Entrada automática: Toda nota confirmada gera entrada com valor bruto, imposto, valor líquido e data/hora.
 - RF02 Registrar despesa: Registrar saída financeira manual com descrição, valor e data.
 - RF03 Consultar saldo: Calcular e exibir saldo atual: entradas − saídas.
-- RF04 Extrato por período: Listar todas as transações dentro de um intervalo de datas.
+- RF04 (ajustado): Extrato por período com filtro de data no formato ISO 8601 (`?from=2026-01-01&to=2026-03-25`). Datas inválidas retornam erro 400.
 - RF05 Resumo financeiro: Exibir total de entradas, saídas, impostos e saldo líquido.
+
+### 4. Requisitos Não-Funcionais (RNF)
+
+- RNF01 Precisão monetária: Todos os valores devem ser armazenados como `DECIMAL(10,2)` no banco para evitar erros de arredondamento.
+- RNF02 Rastreabilidade: Transações são imutáveis após registro. Correções são feitas via nova transação de estorno (crédito/débito compensatório), nunca editando ou deletando o registro original.
+- RNF03 Segurança: Apenas usuários autenticados podem consultar ou registrar transações. Autenticação fornecida pelo Squad 1.
+- RNF04 Performance: Consulta de saldo e resumo financeiro devem retornar em menos de 1 segundo, mesmo com histórico de até 1.000 transações no banco local.
+
 
 ---
 
-### 3. Especificação Técnica e Integração
+### 5. Especificação Técnica e Integração
 
 Endpoints de API
 POST /v1/fisc/cashflow/entry -> Registra entrada financeira
