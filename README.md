@@ -308,9 +308,18 @@ Problema: Sem controle financeiro centralizado, o empresário não sabe se a emp
 
 Proposta de Valor: Registrar automaticamente cada transação financeira vinculada à nota fiscal gerada e permitir visualizar saldo e extrato do período.
 
+Oportunidade de Venda: Fluxo de caixa simples é um dos produtos mais vendidos para micro e pequenas empresas. Pode ser oferecido como módulo standalone (sem fiscal), apenas com registro manual de entradas e saídas.
+
+### 2. Personas
+
+- **Lojista / Gerente:** Consulta o saldo atual e o extrato para entender a saúde financeira do negócio.
+- **Contador:** Analisa o resumo financeiro (entradas, saídas, impostos) para fechar o balanço.
+- **Sistema interno (MOD3):** Lança entradas automaticamente ao confirmar uma nota fiscal.
+
+
 ---
 
-### 2. Requisitos Funcionais (RF)
+### 3. Requisitos Funcionais (RF)
 
 - RF01 Entrada automática: Toda nota confirmada gera entrada com valor bruto, imposto, valor líquido e data/hora.
 - RF02 Registrar despesa: Registrar saída financeira manual com descrição, valor e data.
