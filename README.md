@@ -386,9 +386,3 @@ Transacao
 - [ ] Endpoints de todos os módulos documentados (Swagger ou README_API.md).
 - [ ] Fluxo end-to-end testado: Cadastrar produto → dar entrada em estoque → gerar nota → verificar fluxo de caixa.
 - [ ] (Condicional ao Squad 5) Pipeline de CI/CD configurado e passando.
-
-- Código revisado por outro membro do Squad.
-- Testes unitários com >80% de cobertura.
-- Documentação da API atualizada (Swagger/OpenAPI).
-- Pipeline de CI/CD passando.
-- Integração entre módulos (MOD2, MOD3, MOD4) validada end-to-end.
