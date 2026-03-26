@@ -291,6 +291,12 @@ ItemNota
 - Ao confirmar a nota, o estoque é baixado e a receita é lançada no fluxo de caixa.
 - Uma nota confirmada não pode ser alterada ou recalculada.
 
+### 8. Definição de Pronto (DoD)
+
+- [ ] Código revisado via Pull Request por outro membro do Squad.
+- [ ] Cálculo de impostos (RF02) com pelo menos 2 testes unitários (casos: item único, múltiplos itens).
+- [ ] Endpoints /intent e /confirm documentados em README_API.md.
+- [ ] Fluxo completo testado via Postman/Insomnia: calcular → confirmar → verificar baixa no estoque.
 
 ---
 
