@@ -215,9 +215,17 @@ Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto
 - RF04 Validar SKUs: Retorna erro identificando qualquer SKU não encontrado no cadastro.
 - RF05 Acionar baixa de estoque: Ao confirmar a nota, solicita saída de estoque para todos os itens (atomicidade com MOD2).
 
+  ### 4. Requisitos Não-Funcionais (RNF)
+
+- RNF01 Precisão:** Cálculos de imposto devem usar `DECIMAL` no banco (nunca `float`) para evitar erros de ponto flutuante em valores monetários.
+- RNF02 Segurança:** Apenas usuários autenticados podem gerar ou confirmar notas. A autenticação é fornecida pelo Squad 1 (Core Engine & Auth).
+- RNF03 Idempotência:** Uma nota no status "rascunho" pode ser recalculada quantas vezes necessário. Uma nota confirmada é imutável.
+- RNF04 Performance:** O cálculo de impostos (RF02/RF03) deve retornar em menos de 500ms para notas com até 50 itens, no ambiente local.
+
+
 ---
 
-### 3. Especificação Técnica e Integração
+### 4. Especificação Técnica e Integração
 
 Endpoints de API
 > POST /v1/fisc/invoice/intent    -> Calcula impostos e retorna rascunho (sem salvar)
