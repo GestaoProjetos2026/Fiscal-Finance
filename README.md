@@ -201,7 +201,13 @@ Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto
 
 ---
 
-### 2. Requisitos Funcionais (RF)
+### 2. Personas
+
+ - **Vendedor / Lojista:** Seleciona os produtos vendidos e solicita a geração da nota.
+ - **Contador:** Consulta notas geradas para verificar os valores de imposto aplicados.
+ - **Sistemas internos (MOD2 e MOD4):** Recebem a confirmação da nota para baixar estoque e registrar receita.
+
+### 3. Requisitos Funcionais
 
 - RF01 Gerar intenção de nota: Recebe lista de itens (SKU + quantidade) e retorna o JSON completo da nota.
 - RF02 Calcular imposto por item: Fórmula: imposto = preco_base × aliquota_imposto × quantidade.
