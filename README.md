@@ -64,10 +64,11 @@ PUT /v1/fisc/products/{sku} -> Atualiza produto
 DELETE /v1/fisc/products/{sku} -> Remove produto
 ```
 Webhooks disparados por este módulo
+```
 - product.created: Payload { sku, nome, preco_base, aliquota_imposto }. Consumidores: MOD2 (Estoque), MOD3 (Fiscal).
 - product.updated: Payload { sku, campos_alterados }. Consumidores: MOD2, MOD3.
 - product.deleted: Payload { sku }. Consumidores: MOD2 (para invalidar cache de saldo).
-
+```
 Estrutura de dados — Produto
 {
 "sku": "CAN-AZUL-001",
@@ -157,10 +158,11 @@ GET /v1/fisc/stock/{sku}/history -> Histórico do produto
 ```
 
 Webhooks disparados por este módulo
+```
 - stock.entry_registered: Payload { sku, quantidade, saldo_atual, motivo }. Consumidor: MOD4 (Fluxo de Caixa, se compra).
 - stock.exit_registered: Payload { sku, quantidade, saldo_atual, nota_id }. Consumidor: MOD3 (confirmação de baixa).
 - stock.insufficient: Payload { sku, saldo_atual, quantidade_solicitada }. Consumidor: MOD3 (para bloquear nota).
-
+```
 ---
 
 ### 6. User Stories
@@ -236,8 +238,9 @@ Endpoints de API
 ```
 
 Webhooks disparados por este módulo
+```
 - invoice.generated: Payload { id, total_bruto, total_imposto, total_final, data_emissao }. Consumidores: MOD2 (baixa de estoque), MOD4 (entrada financeira).
-
+```
   json
 {
   "itens": [
