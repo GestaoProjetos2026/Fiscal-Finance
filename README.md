@@ -56,14 +56,13 @@ Oportunidade de Venda: Qualquer negócio que vende produtos físicos precisa de 
 
 ### 5. Especificação Técnica e Integração
 
-Endpoints de API (referência para Sprint 2)
-
+```
 POST /v1/fisc/products -> Cria produto
 GET /v1/fisc/products -> Lista produtos
 GET /v1/fisc/products/{sku} -> Busca por SKU
 PUT /v1/fisc/products/{sku} -> Atualiza produto
 DELETE /v1/fisc/products/{sku} -> Remove produto
-
+```
 Webhooks disparados por este módulo
 - product.created: Payload { sku, nome, preco_base, aliquota_imposto }. Consumidores: MOD2 (Estoque), MOD3 (Fiscal).
 - product.updated: Payload { sku, campos_alterados }. Consumidores: MOD2, MOD3.
@@ -150,10 +149,12 @@ Oportunidade de Venda: Controle de estoque é um dos serviços mais procurados p
 
 Endpoints de API
 
+```
 POST /v1/fisc/stock/entry -> Registra entrada
 POST /v1/fisc/stock/exit -> Registra saída
 GET /v1/fisc/stock/{sku} -> Consulta saldo
 GET /v1/fisc/stock/{sku}/history -> Histórico do produto
+```
 
 Webhooks disparados por este módulo
 - stock.entry_registered: Payload { sku, quantidade, saldo_atual, motivo }. Consumidor: MOD4 (Fluxo de Caixa, se compra).
@@ -227,10 +228,12 @@ Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto
 
 ### 5. Especificação Técnica e Integração
 
+```
 Endpoints de API
 > POST /v1/fisc/invoice/intent    -> Calcula impostos e retorna rascunho (sem salvar)
 > POST /v1/fisc/invoice/confirm   -> Confirma nota, baixa estoque e lança financeiro
 > GET  /v1/fisc/invoice/{id}      -> Consulta nota confirmada por ID
+```
 
 Webhooks disparados por este módulo
 - invoice.generated: Payload { id, total_bruto, total_imposto, total_final, data_emissao }. Consumidores: MOD2 (baixa de estoque), MOD4 (entrada financeira).
@@ -339,11 +342,13 @@ Oportunidade de Venda: Fluxo de caixa simples é um dos produtos mais vendidos p
 
 ### 5. Especificação Técnica e Integração
 
+```
 Endpoints de API
 POST /v1/fisc/cashflow/entry -> Registra entrada financeira
 POST /v1/fisc/cashflow/expense -> Registra despesa/saída
 GET /v1/fisc/cashflow/balance -> Consulta saldo atual
 GET /v1/fisc/cashflow/statement -> Extrato (?from=&to=)
+```
 
 Transacao
 ├── id              (INT, PRIMARY KEY, AUTO_INCREMENT)
