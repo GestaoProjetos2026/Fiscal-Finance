@@ -363,8 +363,21 @@ Transacao
 
 "Como Contador, eu quero ver o extrato de um período específico com total de entradas, saídas e impostos para fechar o balanço mensal."
 
+### 7. Critérios de Aceite
 
----
+- Ao confirmar uma nota em MOD3, uma entrada é automaticamente registrada no fluxo de caixa com os valores corretos.
+- É possível registrar uma despesa manual com descrição, valor e data.
+- O saldo retornado pelo endpoint `/balance` é igual a Σ entradas − Σ despesas.
+- O extrato com filtro de datas retorna somente as transações do período solicitado.
+- Datas em formato inválido retornam erro 400.
+
+### 8. Definição de Pronto (DoD)
+
+- [ ] Código revisado via Pull Request por outro membro do Squad.
+- [ ] Cálculo de saldo (RF03) com pelo menos 1 teste unitário.
+- [ ] Endpoints documentados em README_API.md.
+- [ ] Testado via Postman/Insomnia: registrar entrada → registrar despesa → consultar saldo → ver extrato.
+
 
 ### 4. Definição de Pronto (DoD) Geral
 
