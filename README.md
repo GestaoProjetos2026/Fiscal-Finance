@@ -283,6 +283,14 @@ ItemNota
 
 "Como Sistema (MOD4), eu quero ser notificado da confirmação de uma nota para registrar automaticamente a receita no fluxo de caixa."
 
+### 7. Critérios de Aceite
+
+- É possível enviar uma lista de itens (SKU + quantidade) e receber o rascunho com impostos calculados.
+- A fórmula `imposto = preco_base × aliquota_imposto × quantidade` está correta e verificável.
+- SKU inexistente retorna erro identificando qual SKU não foi encontrado.
+- Ao confirmar a nota, o estoque é baixado e a receita é lançada no fluxo de caixa.
+- Uma nota confirmada não pode ser alterada ou recalculada.
+
 
 ---
 
