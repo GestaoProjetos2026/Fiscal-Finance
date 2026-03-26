@@ -215,7 +215,7 @@ Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto
 - RF04 Validar SKUs: Retorna erro identificando qualquer SKU não encontrado no cadastro.
 - RF05 Acionar baixa de estoque: Ao confirmar a nota, solicita saída de estoque para todos os itens (atomicidade com MOD2).
 
-  ### 4. Requisitos Não-Funcionais (RNF)
+### 4. Requisitos Não-Funcionais (RNF)
 
 - RNF01 Precisão:** Cálculos de imposto devem usar `DECIMAL` no banco (nunca `float`) para evitar erros de ponto flutuante em valores monetários.
 - RNF02 Segurança:** Apenas usuários autenticados podem gerar ou confirmar notas. A autenticação é fornecida pelo Squad 1 (Core Engine & Auth).
@@ -225,7 +225,7 @@ Escopo: O módulo gera o objeto de dados fiscal calculado. A emissão real junto
 
 ---
 
-### 4. Especificação Técnica e Integração
+### 5. Especificação Técnica e Integração
 
 Endpoints de API
 > POST /v1/fisc/invoice/intent    -> Calcula impostos e retorna rascunho (sem salvar)
@@ -234,6 +234,55 @@ Endpoints de API
 
 Webhooks disparados por este módulo
 - invoice.generated: Payload { id, total_bruto, total_imposto, total_final, data_emissao }. Consumidores: MOD2 (baixa de estoque), MOD4 (entrada financeira).
+
+  json
+{
+  "itens": [
+    {
+      "sku": "CAN-AZUL-001",
+      "nome": "Caneta Azul BIC",
+      "quantidade": 10,
+      "preco_base": 2.50,
+      "aliquota_imposto": 0.12,
+      "imposto_item": 3.00,
+      "total_item": 25.00
+    }
+  ],
+  "total_bruto": 25.00,
+  "total_imposto": 3.00,
+  "total_final": 25.00,
+  "status": "rascunho"
+}
+
+
+
+Nota
+├── id              (INT, PRIMARY KEY, AUTO_INCREMENT)
+├── status          (ENUM: 'rascunho', 'confirmada')
+├── total_bruto     (DECIMAL, NOT NULL)
+├── total_imposto   (DECIMAL, NOT NULL)
+├── total_final     (DECIMAL, NOT NULL)
+└── criado_em       (DATETIME, DEFAULT NOW())
+
+ItemNota
+├── id              (INT, PRIMARY KEY, AUTO_INCREMENT)
+├── nota_id         (INT, FK -> Nota.id)
+├── sku             (VARCHAR, FK -> Produto.sku)
+├── quantidade      (INT, NOT NULL)
+├── preco_base      (DECIMAL, NOT NULL)
+├── aliquota_imposto(DECIMAL, NOT NULL)
+├── imposto_item    (DECIMAL, NOT NULL)
+└── total_item      (DECIMAL, NOT NULL)
+
+### 6. User Stories
+
+
+"Como Vendedor, eu quero selecionar os produtos e quantidades para ver o valor total com impostos antes de confirmar a venda."
+
+"Como Contador, eu quero consultar uma nota gerada pelo ID para verificar se os impostos foram calculados corretamente."
+
+"Como Sistema (MOD4), eu quero ser notificado da confirmação de uma nota para registrar automaticamente a receita no fluxo de caixa."
+
 
 ---
 
