@@ -345,6 +345,25 @@ POST /v1/fisc/cashflow/expense -> Registra despesa/saída
 GET /v1/fisc/cashflow/balance -> Consulta saldo atual
 GET /v1/fisc/cashflow/statement -> Extrato (?from=&to=)
 
+Transacao
+├── id              (INT, PRIMARY KEY, AUTO_INCREMENT)
+├── tipo            (ENUM: 'entrada', 'despesa')
+├── descricao       (VARCHAR, NOT NULL)
+├── valor_bruto     (DECIMAL(10,2))
+├── valor_imposto   (DECIMAL(10,2), DEFAULT 0)
+├── valor_liquido   (DECIMAL(10,2), NOT NULL)
+├── nota_id         (INT, NULLABLE, FK -> Nota.id)
+└── criado_em       (DATETIME, DEFAULT NOW())
+
+### 6. User Stories
+
+"Como Lojista, eu quero consultar o saldo atual do caixa para saber se tenho dinheiro disponível no momento."
+
+"Como Lojista, eu quero registrar uma despesa manual (ex: aluguel, fornecedor) para que o fluxo de caixa reflita todos os gastos reais da empresa."
+
+"Como Contador, eu quero ver o extrato de um período específico com total de entradas, saídas e impostos para fechar o balanço mensal."
+
+
 ---
 
 ### 4. Definição de Pronto (DoD) Geral
