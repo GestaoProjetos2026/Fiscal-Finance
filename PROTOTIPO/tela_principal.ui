@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Squad FISC - Dashboard</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+
+      <!-- ABA 1: PRODUTOS -->
+      <widget class="QWidget" name="tab_produtos">
+       <attribute name="title">
+        <string>Módulo 1: Produtos</string>
+       </attribute>
+       <layout class="QFormLayout" name="formLayout_prod">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_sku"><property name="text"><string>SKU:</string></property></widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="input_sku"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_nome"><property name="text"><string>Nome do Produto:</string></property></widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="input_nome"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_preco"><property name="text"><string>Preço Base (R$):</string></property></widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="input_preco"/>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_imposto"><property name="text"><string>Imposto (%):</string></property></widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QLineEdit" name="input_imposto"/>
+        </item>
+        <item row="4" column="1">
+         <widget class="QPushButton" name="btn_salvar_produto">
+          <property name="text"><string>Salvar / Cadastrar Produto</string></property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- ABA 2: ESTOQUE -->
+      <widget class="QWidget" name="tab_estoque">
+       <attribute name="title">
+        <string>Módulo 2: Estoque</string>
+       </attribute>
+       <layout class="QFormLayout" name="formLayout_est">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_est_sku"><property name="text"><string>SKU do Produto:</string></property></widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="input_est_sku"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_est_qtd"><property name="text"><string>Quantidade:</string></property></widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QSpinBox" name="input_est_qtd">
+             <property name="maximum"><number>99999</number></property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <layout class="QHBoxLayout">
+          <item>
+           <widget class="QPushButton" name="btn_est_entrada">
+            <property name="text"><string>Registrar ENTRADA</string></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_est_saida">
+            <property name="text"><string>Registrar SAÍDA</string></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_est_consultar">
+            <property name="text"><string>Consultar Saldo</string></property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- ABA 3: FISCAL / NFe -->
+      <widget class="QWidget" name="tab_fiscal">
+       <attribute name="title">
+        <string>Módulo 3: Fiscal / Calculadora</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_fisc">
+        <item>
+         <layout class="QHBoxLayout">
+          <item>
+           <widget class="QLabel" name="label_fisc_sku"><property name="text"><string>SKU:</string></property></widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="input_fisc_sku"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_fisc_qtd"><property name="text"><string>Qtd:</string></property></widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="input_fisc_qtd">
+               <property name="minimum"><number>1</number></property>
+               <property name="maximum"><number>9999</number></property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_fisc_calcular">
+          <property name="text"><string>Calcular Intent (Chamada PHP)</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="txt_fisc_resultado">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="placeholderText"><string>O resultado do cálculo retornará do PHP em formato JSON para exibição aqui. Em produção, este será o retorno da API.</string></property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
+      <!-- ABA 4: FLUXO DE CAIXA -->
+      <widget class="QWidget" name="tab_caixa">
+       <attribute name="title">
+        <string>Módulo 4: Fluxo de Caixa</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_caixa">
+        <item>
+         <widget class="QPushButton" name="btn_caixa_atualizar">
+          <property name="text"><string>Atualizar Resumo Financeiro</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="txt_caixa_saldo">
+          <property name="readOnly"><bool>true</bool></property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+</ui>
