@@ -1,0 +1,16 @@
+$kind: http-request
+name: PUT Update Product
+method: PUT
+url: 'http://localhost:5000/v1/fisc/products/PROD-TEST-001'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Produto Teste Atualizado",
+      "preco_base": 15.00,
+      "aliquota_imposto": 0.15
+    }
