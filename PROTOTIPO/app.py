@@ -58,6 +58,8 @@ class JanelaPrincipal(QMainWindow):
             self.btn_nf_validar_sku.clicked.connect(self.acao_validar_sku_nota)
         if hasattr(self, 'btn_nf_totais'):
             self.btn_nf_totais.clicked.connect(self.acao_calcular_totais_nota)
+        if hasattr(self, 'btn_nf_emitir'):
+            self.btn_nf_emitir.clicked.connect(self.acao_emitir_nota_fiscal)
 
         # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
@@ -395,6 +397,41 @@ class JanelaPrincipal(QMainWindow):
             f"======================================="
         )
         self.txt_nf_totais.setPlainText(texto)
+
+    # --------------- MOD5: EMITIR NOTA (BAIXA DE ESTOQUE) ---------------
+    def acao_emitir_nota_fiscal(self):
+        numero = self.input_nf_item_nota.text().strip()
+
+        if not numero:
+            QMessageBox.warning(self, "Aviso", "Informe o Número da Nota no campo acima para emitir!")
+            return
+
+        # Confirmação antes de emitir (ação irreversível)
+        resposta = QMessageBox.question(
+            self,
+            "Confirmar Emissão",
+            f"Deseja emitir a nota '{numero}'?\n\n"
+            f"⚠️ Esta ação é IRREVERSÍVEL.\n"
+            f"O estoque será baixado automaticamente para todos os itens da nota.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if resposta != QMessageBox.StandardButton.Yes:
+            return
+
+        sucesso, mensagem, relatorio = database.emitir_nota_fiscal(numero)
+
+        if sucesso:
+            linhas_relatorio = "\n".join(relatorio) if relatorio else ""
+            QMessageBox.information(
+                self, "✅ Nota Emitida!",
+                f"{mensagem}\n\nBaixas realizadas no estoque:\n{linhas_relatorio}"
+            )
+            # Atualiza todos os painéis relevantes
+            self.acao_atualizar_lista_notas()
+            self.acao_calcular_totais_nota()
+            self.acao_exibir_itens_nota(numero)
+        else:
+            QMessageBox.critical(self, "❌ Erro na Emissão", mensagem)
 
 
 if __name__ == '__main__':

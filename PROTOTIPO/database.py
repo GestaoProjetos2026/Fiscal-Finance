@@ -277,3 +277,70 @@ def calcular_totais_nota(nota_id):
             "total_final":   round(row[4], 2)
         }
     return None
+
+def emitir_nota_fiscal(numero_nota):
+    """
+    Emite a nota fiscal de forma atômica:
+      1. Valida que a nota existe e está em 'rascunho'
+      2. Valida que a nota possui pelo menos um item
+      3. Verifica saldo de estoque suficiente para TODOS os itens
+      4. Registra baixa ('saida') no estoque para cada item
+      5. Muda o status da nota para 'emitida'
+    Se qualquer etapa falhar, faz rollback e nenhuma alteração é salva.
+    Retorna (sucesso: bool, mensagem: str, relatorio: list | None)
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    try:
+        # Etapa 1: nota existe e está em rascunho?
+        cursor.execute("SELECT id, status FROM notas_fiscais WHERE numero_nota=?", (numero_nota,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False, f"Nota '{numero_nota}' não encontrada.", None
+        nota_id, status = row
+        if status != 'rascunho':
+            conn.close()
+            return False, f"A nota '{numero_nota}' já foi emitida anteriormente.", None
+
+        # Etapa 2: nota possui itens?
+        cursor.execute("SELECT sku, quantidade FROM itens_nota WHERE nota_id=?", (nota_id,))
+        itens = cursor.fetchall()
+        if not itens:
+            conn.close()
+            return False, "A nota não possui itens. Adicione pelo menos um item antes de emitir.", None
+
+        # Etapa 3: verificar saldo de estoque para cada item
+        sem_estoque = []
+        for sku, quantidade in itens:
+            cursor.execute("SELECT SUM(quantidade) FROM estoque WHERE sku=? AND tipo='entrada'", (sku,))
+            entradas = cursor.fetchone()[0] or 0
+            cursor.execute("SELECT SUM(quantidade) FROM estoque WHERE sku=? AND tipo='saida'", (sku,))
+            saidas = cursor.fetchone()[0] or 0
+            saldo = entradas - saidas
+            if saldo < quantidade:
+                sem_estoque.append(f"  SKU {sku}: saldo disponível = {saldo} | necessário = {quantidade}")
+        if sem_estoque:
+            conn.close()
+            return False, "Estoque insuficiente para os seguintes itens:\n" + "\n".join(sem_estoque), None
+
+        # Etapa 4: registrar baixa de estoque para cada item
+        relatorio = []
+        for sku, quantidade in itens:
+            cursor.execute(
+                "INSERT INTO estoque (sku, tipo, quantidade) VALUES (?, 'saida', ?)",
+                (sku, quantidade)
+            )
+            relatorio.append(f"  ✅ Baixa: SKU {sku} — {quantidade} unidade(s)")
+
+        # Etapa 5: mudar status para 'emitida'
+        cursor.execute("UPDATE notas_fiscais SET status='emitida' WHERE id=?", (nota_id,))
+
+        conn.commit()
+        conn.close()
+        return True, f"Nota '{numero_nota}' emitida com sucesso!", relatorio
+
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return False, f"Erro ao emitir nota: {str(e)}", None

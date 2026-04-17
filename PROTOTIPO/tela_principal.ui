@@ -288,6 +288,13 @@
          </widget>
         </item>
 
+        <!-- Seção: Emitir Nota (MOD5 - Baixa de Estoque) -->
+        <item>
+         <widget class="QPushButton" name="btn_nf_emitir">
+          <property name="text"><string>📤 Emitir Nota e Baixar Estoque Automaticamente</string></property>
+         </widget>
+        </item>
+
         <!-- Seção: Status / Histórico -->
         <item>
          <widget class="QLabel" name="label_nf_historico">
