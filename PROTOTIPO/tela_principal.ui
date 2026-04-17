@@ -256,6 +256,19 @@
          </widget>
         </item>
 
+        <!-- Seção: Totais da Nota -->
+        <item>
+         <widget class="QPushButton" name="btn_nf_totais">
+          <property name="text"><string>📊 Ver Totais da Nota</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="txt_nf_totais">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="placeholderText"><string>O resumo financeiro consolidado da nota aparecerá aqui.</string></property>
+         </widget>
+        </item>
+
         <!-- Seção: Status / Histórico -->
         <item>
          <widget class="QLabel" name="label_nf_historico">

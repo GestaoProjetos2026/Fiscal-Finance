@@ -214,3 +214,29 @@ def listar_itens_nota(nota_id):
         }
         for r in rows
     ]
+
+def calcular_totais_nota(nota_id):
+    """Calcula e retorna os totais consolidados de todos os itens de uma nota fiscal."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT
+               COUNT(*)          AS num_itens,
+               SUM(quantidade)   AS total_qtd,
+               SUM(valor_bruto)  AS total_bruto,
+               SUM(valor_imposto) AS total_imposto,
+               SUM(valor_total)  AS total_final
+           FROM itens_nota WHERE nota_id=?""",
+        (nota_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if row and row[0] and row[0] > 0:
+        return {
+            "num_itens":     row[0],
+            "total_qtd":     row[1],
+            "total_bruto":   round(row[2], 2),
+            "total_imposto": round(row[3], 2),
+            "total_final":   round(row[4], 2)
+        }
+    return None

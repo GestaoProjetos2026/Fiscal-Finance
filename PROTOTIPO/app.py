@@ -54,6 +54,8 @@ class JanelaPrincipal(QMainWindow):
             self.btn_nf_criar.clicked.connect(self.acao_criar_nota_fiscal)
         if hasattr(self, 'btn_nf_add_item'):
             self.btn_nf_add_item.clicked.connect(self.acao_adicionar_item_nota)
+        if hasattr(self, 'btn_nf_totais'):
+            self.btn_nf_totais.clicked.connect(self.acao_calcular_totais_nota)
 
         # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
@@ -328,6 +330,41 @@ class JanelaPrincipal(QMainWindow):
                 f"Total: R$ {item['valor_total']:.2f}"
             )
         self.txt_nf_itens.setPlainText("\n".join(linhas))
+
+    def acao_calcular_totais_nota(self):
+        numero = self.input_nf_item_nota.text().strip()
+
+        if not numero:
+            QMessageBox.warning(self, "Aviso", "Informe o Número da Nota no campo acima para calcular os totais!")
+            return
+
+        nota = database.buscar_nota_por_numero(numero)
+        if not nota:
+            QMessageBox.critical(self, "Erro", f"Nota '{numero}' não encontrada.")
+            return
+
+        totais = database.calcular_totais_nota(nota['id'])
+        if not totais:
+            self.txt_nf_totais.setPlainText(
+                f"A nota '{numero}' ainda não possui itens.\nAdicione itens antes de calcular os totais."
+            )
+            return
+
+        texto = (
+            f"========================================\n"
+            f"  RESUMO CONSOLIDADO — NOTA {numero}\n"
+            f"  {nota['descricao']}\n"
+            f"========================================\n"
+            f"  Total de Itens (linhas): {totais['num_itens']}\n"
+            f"  Total de Unidades:       {totais['total_qtd']}\n"
+            f"----------------------------------------\n"
+            f"  Total Bruto (sem imp.):  R$ {totais['total_bruto']:.2f}\n"
+            f"  Total Impostos:          R$ {totais['total_imposto']:.2f}\n"
+            f"========================================\n"
+            f"  TOTAL FINAL DA NOTA:     R$ {totais['total_final']:.2f}\n"
+            f"======================================="
+        )
+        self.txt_nf_totais.setPlainText(texto)
 
 
 if __name__ == '__main__':
