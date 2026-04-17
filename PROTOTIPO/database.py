@@ -138,3 +138,19 @@ def registrar_despesa(descricao, valor, data=None):
 
     except Exception as e:
         return False, str(e)
+
+def consultar_extrato_periodo(data_inicio, data_fim):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT tipo, descricao, valor_liquido, data_registro
+        FROM caixa
+        WHERE date(data_registro) BETWEEN ? AND ?
+        ORDER BY data_registro DESC
+    """, (data_inicio, data_fim))
+
+    resultados = cursor.fetchall()
+    conn.close()
+
+    return resultados
