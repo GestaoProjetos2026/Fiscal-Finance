@@ -54,6 +54,8 @@ class JanelaPrincipal(QMainWindow):
             self.btn_nf_criar.clicked.connect(self.acao_criar_nota_fiscal)
         if hasattr(self, 'btn_nf_add_item'):
             self.btn_nf_add_item.clicked.connect(self.acao_adicionar_item_nota)
+        if hasattr(self, 'btn_nf_validar_sku'):
+            self.btn_nf_validar_sku.clicked.connect(self.acao_validar_sku_nota)
         if hasattr(self, 'btn_nf_totais'):
             self.btn_nf_totais.clicked.connect(self.acao_calcular_totais_nota)
 
@@ -258,6 +260,31 @@ class JanelaPrincipal(QMainWindow):
             )
         self.txt_nf_status.setPlainText("\n".join(linhas))
 
+    def acao_validar_sku_nota(self):
+        """Valida o SKU em relação à nota informada e exibe o resultado no label inline."""
+        numero = self.input_nf_item_nota.text().strip()
+        sku = self.input_nf_item_sku.text().strip()
+
+        if not numero or not sku:
+            self.label_nf_sku_status.setText("⚠️ Informe o Nº da Nota e o SKU antes de validar.")
+            return
+
+        nota = database.buscar_nota_por_numero(numero)
+        if not nota:
+            self.label_nf_sku_status.setText(f"❌ Nota '{numero}' não encontrada.")
+            return
+
+        valido, codigo, mensagem, _ = database.validar_sku_para_nota(nota['id'], sku)
+
+        # Exibe o resultado no label inline com emoção de acordo com o código
+        icones = {
+            'OK':            mensagem,
+            'NOTA_EMITIDA':  f"🔒 {mensagem}",
+            'SKU_INEXISTENTE': f"❌ {mensagem}",
+            'SKU_DUPLICADO': f"⚠️ {mensagem}",
+        }
+        self.label_nf_sku_status.setText(icones.get(codigo, mensagem))
+
     def acao_adicionar_item_nota(self):
         numero = self.input_nf_item_nota.text().strip()
         sku = self.input_nf_item_sku.text().strip()
@@ -273,13 +300,15 @@ class JanelaPrincipal(QMainWindow):
             QMessageBox.critical(self, "Erro", f"Nota '{numero}' não encontrada. Crie a intenção primeiro.")
             return
 
-        # Busca o produto pelo SKU
-        produto = database.buscar_produto(sku)
-        if not produto:
-            QMessageBox.critical(self, "Erro", f"Produto com SKU '{sku}' não cadastrado (use o Módulo 1).")
+        # --- VALIDAÇÃO CENTRALIZADA (MOD5 - Task 4) ---
+        valido, codigo, mensagem, produto = database.validar_sku_para_nota(nota['id'], sku)
+        self.label_nf_sku_status.setText(mensagem)  # Atualiza label inline
+
+        if not valido:
+            QMessageBox.critical(self, f"Validação [{codigo}]", mensagem)
             return
 
-        # Calcula e insere o item
+        # Calcula e insere o item (produto já veio da validação)
         sucesso, valores, msg = database.adicionar_item_nota(
             nota['id'], sku, qtd,
             produto['preco_base'], produto['aliquota']
@@ -299,6 +328,7 @@ class JanelaPrincipal(QMainWindow):
             QMessageBox.information(self, "Item Calculado", texto_calculo)
             self.input_nf_item_sku.clear()
             self.input_nf_item_qtd.setValue(1)
+            self.label_nf_sku_status.setText("—")
             self.acao_exibir_itens_nota(numero)
         else:
             QMessageBox.critical(self, "Erro", msg)

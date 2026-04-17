@@ -171,6 +171,43 @@ def listar_notas():
         for r in rows
     ]
 
+def validar_sku_para_nota(nota_id, sku):
+    """
+    Valida se um SKU pode ser adicionado a uma nota fiscal.
+    Realiza 3 verificações em sequência:
+      1. A nota deve estar com status 'rascunho'
+      2. O SKU deve existir na tabela de produtos
+      3. O SKU não pode já ter sido adicionado a esta nota (duplicado)
+    Retorna (valido: bool, codigo: str, mensagem: str, dados_produto: dict | None)
+    Códigos possíveis: 'OK', 'NOTA_EMITIDA', 'SKU_INEXISTENTE', 'SKU_DUPLICADO'
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    # Verificação 1: status da nota deve ser 'rascunho'
+    cursor.execute("SELECT status FROM notas_fiscais WHERE id=?", (nota_id,))
+    row = cursor.fetchone()
+    if row and row[0] != 'rascunho':
+        conn.close()
+        return False, 'NOTA_EMITIDA', "Esta nota já foi emitida e não aceita novos itens.", None
+
+    # Verificação 2: SKU deve existir em produtos
+    cursor.execute("SELECT nome, preco_base, aliquota_imposto FROM produtos WHERE sku=?", (sku,))
+    prod = cursor.fetchone()
+    if not prod:
+        conn.close()
+        return False, 'SKU_INEXISTENTE', f"SKU '{sku}' não encontrado na base de produtos (cadastre no Módulo 1).", None
+
+    # Verificação 3: SKU não pode ser duplicado na mesma nota
+    cursor.execute("SELECT id FROM itens_nota WHERE nota_id=? AND sku=?", (nota_id, sku))
+    dup = cursor.fetchone()
+    conn.close()
+    if dup:
+        return False, 'SKU_DUPLICADO', f"SKU '{sku}' já foi adicionado a esta nota. Edite a quantidade se necessário.", None
+
+    dados_produto = {"nome": prod[0], "preco_base": prod[1], "aliquota": prod[2]}
+    return True, 'OK', f"✅ SKU válido: {prod[0]} | Preço: R$ {prod[1]:.2f} | Alíquota: {prod[2]*100:.1f}%", dados_produto
+
 def adicionar_item_nota(nota_id, sku, quantidade, preco_base, aliquota):
     """Calcula o imposto por item e insere na tabela itens_nota."""
     valor_bruto = round(preco_base * quantidade, 2)

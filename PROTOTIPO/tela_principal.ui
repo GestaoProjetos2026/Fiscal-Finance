@@ -224,17 +224,36 @@
             <widget class="QLineEdit" name="input_nf_item_sku"/>
            </item>
            <item row="2" column="0">
+            <widget class="QLabel" name="label_nf_validar">
+             <property name="text"><string>Validação:</string></property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <layout class="QHBoxLayout">
+             <item>
+              <widget class="QPushButton" name="btn_nf_validar_sku">
+               <property name="text"><string>🔍 Validar SKU</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_nf_sku_status">
+               <property name="text"><string>—</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="3" column="0">
             <widget class="QLabel" name="label_nf_item_qtd">
              <property name="text"><string>Quantidade:</string></property>
             </widget>
            </item>
-           <item row="2" column="1">
+           <item row="3" column="1">
             <widget class="QSpinBox" name="input_nf_item_qtd">
              <property name="minimum"><number>1</number></property>
              <property name="maximum"><number>9999</number></property>
             </widget>
            </item>
-           <item row="3" column="1">
+           <item row="4" column="1">
             <widget class="QPushButton" name="btn_nf_add_item">
              <property name="text"><string>🧮 Calcular e Adicionar Item</string></property>
             </widget>
