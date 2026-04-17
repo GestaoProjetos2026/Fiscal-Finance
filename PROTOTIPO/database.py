@@ -154,3 +154,34 @@ def consultar_extrato_periodo(data_inicio, data_fim):
     conn.close()
 
     return resultados
+
+def consultar_resumo_financeiro():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*), SUM(valor_liquido) FROM caixa WHERE tipo='entrada'")
+    qtd_entradas, total_entradas = cursor.fetchone()
+    qtd_entradas = qtd_entradas or 0
+    total_entradas = total_entradas or 0
+
+    cursor.execute("SELECT COUNT(*), SUM(valor_liquido) FROM caixa WHERE tipo='despesa'")
+    qtd_despesas, total_despesas = cursor.fetchone()
+    qtd_despesas = qtd_despesas or 0
+    total_despesas = total_despesas or 0
+
+    saldo = total_entradas - total_despesas
+
+    ticket_entrada = total_entradas / qtd_entradas if qtd_entradas > 0 else 0
+    ticket_despesa = total_despesas / qtd_despesas if qtd_despesas > 0 else 0
+
+    conn.close()
+
+    return {
+        "total_entradas": round(total_entradas, 2),
+        "total_despesas": round(total_despesas, 2),
+        "saldo": round(saldo, 2),
+        "qtd_entradas": qtd_entradas,
+        "qtd_despesas": qtd_despesas,
+        "ticket_medio_entrada": round(ticket_entrada, 2),
+        "ticket_medio_despesa": round(ticket_despesa, 2)
+    }
