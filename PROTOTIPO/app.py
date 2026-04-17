@@ -49,8 +49,13 @@ class JanelaPrincipal(QMainWindow):
         if hasattr(self, 'btn_caixa_atualizar'):
             self.btn_caixa_atualizar.clicked.connect(self.acao_atualizar_caixa)
 
+        # --- Aba 5: Nota Fiscal (MOD5) ---
+        if hasattr(self, 'btn_nf_criar'):
+            self.btn_nf_criar.clicked.connect(self.acao_criar_nota_fiscal)
+
         # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
+        self.acao_atualizar_lista_notas()
 
     # --------------- MÓDULO 1: PRODUTOS ---------------
     def acao_salvar_produto(self):
@@ -209,6 +214,45 @@ class JanelaPrincipal(QMainWindow):
             f"SALdo LÍQUIDO NO CAIXA: R$ {dados['saldo']:.2f}\n"
         )
         self.txt_caixa_saldo.setPlainText(texto)
+
+    # --------------- MÓDULO 5: NOTA FISCAL ---------------
+    def acao_criar_nota_fiscal(self):
+        numero = self.input_nf_numero.text().strip()
+        descricao = self.input_nf_descricao.text().strip()
+
+        if not numero or not descricao:
+            QMessageBox.warning(self, "Aviso", "Preencha o Número da Nota e a Descrição!")
+            return
+
+        sucesso, nota_id, msg = database.criar_nota_fiscal(numero, descricao)
+        if sucesso:
+            QMessageBox.information(self, "Sucesso", f"Nota '{numero}' aberta!\nID interno: #{nota_id}")
+            self.input_nf_numero.clear()
+            self.input_nf_descricao.clear()
+            self.acao_atualizar_lista_notas()
+        else:
+            # Trata erro de duplicidade de forma amigável
+            if "UNIQUE" in str(msg):
+                QMessageBox.critical(self, "Erro", f"Já existe uma nota com o número '{numero}'.")
+            else:
+                QMessageBox.critical(self, "Erro", msg)
+
+    def acao_atualizar_lista_notas(self):
+        if not hasattr(self, 'txt_nf_status'):
+            return
+
+        notas = database.listar_notas()
+        if not notas:
+            self.txt_nf_status.setPlainText("Nenhuma intenção de nota fiscal criada ainda.")
+            return
+
+        linhas = ["=== INTENÇÕES DE NOTA FISCAL ==="]
+        for nf in notas:
+            status_icon = "✅" if nf['status'] == 'emitida' else "📄"
+            linhas.append(
+                f"{status_icon} [{nf['status'].upper()}] Nº {nf['numero_nota']} | {nf['descricao']} | Criada em: {nf['data_criacao']}"
+            )
+        self.txt_nf_status.setPlainText("\n".join(linhas))
 
 
 if __name__ == '__main__':

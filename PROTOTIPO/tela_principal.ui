@@ -159,6 +159,63 @@
        </layout>
       </widget>
 
+     <!-- ABA 5: NOTA FISCAL (MOD5) -->
+      <widget class="QWidget" name="tab_nota_fiscal">
+       <attribute name="title">
+        <string>Módulo 5: Nota Fiscal</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_nf">
+
+        <!-- Seção: Criar Intenção -->
+        <item>
+         <widget class="QGroupBox" name="group_nf_cabecalho">
+          <property name="title"><string>Abrir Nova Intenção de Nota Fiscal</string></property>
+          <layout class="QFormLayout" name="formLayout_nf">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_nf_numero">
+             <property name="text"><string>Número da Nota:</string></property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="input_nf_numero">
+             <property name="placeholderText"><string>Ex: NF-2026-001</string></property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_nf_descricao">
+             <property name="text"><string>Descrição / Cliente:</string></property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="input_nf_descricao">
+             <property name="placeholderText"><string>Ex: Venda para Cliente XPTO</string></property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QPushButton" name="btn_nf_criar">
+             <property name="text"><string>📄 Abrir Nova Intenção de Nota</string></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Seção: Status / Histórico -->
+        <item>
+         <widget class="QLabel" name="label_nf_historico">
+          <property name="text"><string>Notas Fiscais Abertas:</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="txt_nf_status">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="placeholderText"><string>As intenções de nota fiscal abertas aparecerão aqui.</string></property>
+         </widget>
+        </item>
+
+       </layout>
+      </widget>
+
      </widget>
     </item>
    </layout>

@@ -38,7 +38,35 @@ def init_db():
         data_registro DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
-    
+
+    # Tabela 5: Notas Fiscais — Header da intenção (MOD5)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS notas_fiscais (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numero_nota TEXT NOT NULL UNIQUE,
+        descricao TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'rascunho',
+        data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # Tabela 6: Itens da Nota Fiscal (MOD5)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS itens_nota (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nota_id INTEGER NOT NULL,
+        sku TEXT NOT NULL,
+        quantidade INTEGER NOT NULL,
+        preco_base REAL NOT NULL,
+        aliquota REAL NOT NULL,
+        valor_bruto REAL NOT NULL,
+        valor_imposto REAL NOT NULL,
+        valor_total REAL NOT NULL,
+        FOREIGN KEY(nota_id) REFERENCES notas_fiscais(id),
+        FOREIGN KEY(sku) REFERENCES produtos(sku)
+    )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -102,3 +130,43 @@ def consultar_resumo_caixa():
         "despesas": despesas,
         "saldo": entradas - despesas
     }
+
+# ----- MÓDULO 5: NOTA FISCAL -----
+def criar_nota_fiscal(numero_nota, descricao):
+    """Cria o header (intenção) de uma nova nota fiscal com status 'rascunho'."""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO notas_fiscais (numero_nota, descricao, status) VALUES (?, ?, 'rascunho')",
+            (numero_nota, descricao)
+        )
+        conn.commit()
+        nota_id = cursor.lastrowid
+        conn.close()
+        return True, nota_id, "Intenção de nota fiscal criada com sucesso."
+    except Exception as e:
+        return False, None, str(e)
+
+def buscar_nota_por_numero(numero_nota):
+    """Retorna os dados do header da nota fiscal ou None se não encontrada."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, numero_nota, descricao, status, data_criacao FROM notas_fiscais WHERE numero_nota=?", (numero_nota,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return {"id": row[0], "numero_nota": row[1], "descricao": row[2], "status": row[3], "data_criacao": row[4]}
+    return None
+
+def listar_notas():
+    """Retorna todas as notas fiscais cadastradas, da mais recente para a mais antiga."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, numero_nota, descricao, status, data_criacao FROM notas_fiscais ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [
+        {"id": r[0], "numero_nota": r[1], "descricao": r[2], "status": r[3], "data_criacao": r[4]}
+        for r in rows
+    ]
