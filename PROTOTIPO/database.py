@@ -92,15 +92,21 @@ def consultar_saldo_estoque(sku):
 def consultar_resumo_caixa():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+
     cursor.execute("SELECT SUM(valor_liquido) FROM caixa WHERE tipo='entrada'")
     entradas = cursor.fetchone()[0] or 0
+
     cursor.execute("SELECT SUM(valor_liquido) FROM caixa WHERE tipo='despesa'")
     despesas = cursor.fetchone()[0] or 0
+
+    saldo = entradas - despesas
+
     conn.close()
+
     return {
-        "entradas": entradas,
-        "despesas": despesas,
-        "saldo": entradas - despesas
+        "entradas": round(entradas, 2),
+        "despesas": round(despesas, 2),
+        "saldo": round(saldo, 2)
     }
 
 def registrar_despesa(descricao, valor, data=None):
