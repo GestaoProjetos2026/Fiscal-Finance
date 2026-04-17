@@ -2,29 +2,27 @@ import sys
 import os
 import json
 import subprocess
+from datetime import datetime
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PyQt6 import uic
+import database
 
+# Configuração de caminho para o executável
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
-
-import database
 
 class JanelaPrincipal(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        # 1. CARREGA O NOVO DESENHO DA TELA (.ui)
+        # 1. CARREGA O DESENHO DA TELA (.ui)
         uic.loadUi(resource_path("tela_principal.ui"), self)
         
-        # Inicia o SQLite com as tabelas
+        # Inicia o Banco de Dados
         database.init_db()
         
         # 2. CONECTA FUNCIONALIDADES AOS BOTÕES
@@ -32,6 +30,12 @@ class JanelaPrincipal(QMainWindow):
         # --- Aba 1: Produtos ---
         if hasattr(self, 'btn_salvar_produto'):
             self.btn_salvar_produto.clicked.connect(self.acao_salvar_produto)
+            
+        if hasattr(self, 'btn_excluir_produto'):
+            self.btn_excluir_produto.clicked.connect(self.acao_excluir_produto)
+            
+        if hasattr(self, 'btn_listar_produtos'):
+            self.btn_listar_produtos.clicked.connect(self.acao_listar_produtos)
         
         # --- Aba 2: Estoque ---
         if hasattr(self, 'btn_est_entrada'):
@@ -41,15 +45,22 @@ class JanelaPrincipal(QMainWindow):
         if hasattr(self, 'btn_est_consultar'):
             self.btn_est_consultar.clicked.connect(self.acao_consultar_estoque)
             
-        # --- Aba 3: Fiscal ---
+        # --- Aba 3: Fiscal (SUA PARTE CRÍTICA) ---
         if hasattr(self, 'btn_fisc_calcular'):
             self.btn_fisc_calcular.clicked.connect(self.acao_calcular_impostos)
+        
+        # NOVO: Botão para confirmar a nota (Confirm)
+        if hasattr(self, 'btn_fisc_confirmar'):
+            self.btn_fisc_confirmar.clicked.connect(self.acao_confirmar_nota)
             
         # --- Aba 4: Fluxo de Caixa ---
         if hasattr(self, 'btn_caixa_atualizar'):
             self.btn_caixa_atualizar.clicked.connect(self.acao_atualizar_caixa)
+            
+        # Atualização em tempo real ao navegar pelas abas
+        if hasattr(self, 'tabWidget'):
+            self.tabWidget.currentChanged.connect(lambda idx: self.acao_atualizar_caixa())
 
-        # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
 
     # --------------- MÓDULO 1: PRODUTOS ---------------
@@ -60,157 +71,187 @@ class JanelaPrincipal(QMainWindow):
         imposto = self.input_imposto.text().replace(',', '.')
         
         if not sku or not nome or not preco or not imposto:
-            QMessageBox.warning(self, "Aviso", "Preencha todos os campos do Produto!")
+            QMessageBox.warning(self, "Aviso", "Preencha todos os campos!")
             return
             
         try:
-            preco = float(preco)
-            imposto = float(imposto) / 100 # Se digitar 12 (%), vira 0.12
+            sucesso, msg = database.salvar_produto(sku, nome, float(preco), float(imposto)/100)
+            if sucesso:
+                QMessageBox.information(self, "Sucesso", msg)
+                self.input_sku.clear()
+                self.input_nome.clear()
+            else:
+                QMessageBox.critical(self, "Erro", msg)
         except ValueError:
-            QMessageBox.warning(self, "Aviso", "Preço e Imposto devem ser valores numéricos!")
+            QMessageBox.warning(self, "Aviso", "Valores numéricos inválidos!")
+
+    def acao_excluir_produto(self):
+        sku = self.input_sku.text().strip()
+        if not sku:
+            QMessageBox.warning(self, "Aviso", "Informe o SKU para excluir!")
             return
             
-        sucesso, msg = database.salvar_produto(sku, nome, preco, imposto)
-        if sucesso:
-            QMessageBox.information(self, "Sucesso", msg)
-            self.input_sku.clear()
-            self.input_nome.clear()
-            self.input_preco.clear()
-            self.input_imposto.clear()
-        else:
-            QMessageBox.critical(self, "Erro", msg)
+        resposta = QMessageBox.question(self, "Confirmação", f"Tem certeza que deseja excluir o produto {sku} e todo o seu histórico?\nIsso afetará os relatórios passados no fluxo de caixa caso ele possua movimentações.", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        
+        if resposta == QMessageBox.StandardButton.Yes:
+            sucesso, msg = database.excluir_produto(sku)
+            if sucesso:
+                QMessageBox.information(self, "Sucesso", msg)
+                self.input_sku.clear()
+                self.input_nome.clear()
+                self.input_preco.clear()
+                self.input_imposto.clear()
+                self.acao_atualizar_caixa()
+            else:
+                QMessageBox.critical(self, "Erro", msg)
+
+    def acao_listar_produtos(self):
+        produtos = database.listar_produtos()
+        if not produtos:
+            QMessageBox.information(self, "Produtos", "Nenhum produto cadastrado até o momento.")
+            return
+            
+        texto = "=== LISTA DE PRODUTOS CADASTRADOS ===\n\n"
+        for p in produtos:
+            texto += f"[{p['sku']}] {p['nome']}\n"
+            texto += f"   Preço Base: R$ {p['preco_base']:.2f} | Imposto: {p['aliquota']*100:.1f}%\n"
+            texto += f"   Estoque Atual: {p['estoque']} unidades\n"
+            texto += "-" * 40 + "\n"
+            
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Reconhecimento de Produtos")
+        dlg.resize(450, 400)
+        
+        layout = QVBoxLayout(dlg)
+        
+        txt = QTextEdit(dlg)
+        txt.setReadOnly(True)
+        txt.setPlainText(texto)
+        layout.addWidget(txt)
+        
+        btn_fechar = QPushButton("Fechar", dlg)
+        btn_fechar.clicked.connect(dlg.close)
+        layout.addWidget(btn_fechar)
+        
+        dlg.exec()
 
     # --------------- MÓDULO 2: ESTOQUE ---------------
     def acao_estoque(self, tipo):
         sku = self.input_est_sku.text().strip()
         qtd = self.input_est_qtd.value()
         
-        if not sku:
-            QMessageBox.warning(self, "Aviso", "Informe o SKU para lançar no estoque!")
-            return
-            
-        if qtd <= 0:
-            QMessageBox.warning(self, "Aviso", "Informe uma quantidade maior que zero!")
+        if not sku or qtd <= 0:
+            QMessageBox.warning(self, "Aviso", "Informe SKU e quantidade válida!")
             return
             
         if tipo == "saida":
-            saldo_atual = database.consultar_saldo_estoque(sku)
-            if saldo_atual < qtd:
-                QMessageBox.warning(self, "Sem Saldo", f"Saldo Insuficiente. Saldo Atual: {saldo_atual}.")
+            saldo = database.consultar_saldo_estoque(sku)
+            if saldo < qtd:
+                QMessageBox.warning(self, "Sem Saldo", f"Saldo insuficiente: {saldo}")
+                return
+        elif tipo == "entrada":
+            produto = database.buscar_produto(sku)
+            if not produto:
+                QMessageBox.warning(self, "Aviso", "Produto não encontrado!")
+                return
+            custo_total = produto["preco_base"] * qtd
+            resumo_caixa = database.consultar_resumo_caixa()
+            if resumo_caixa["saldo"] < custo_total:
+                QMessageBox.warning(self, "Saldo Insuficiente", f"Fluxo de caixa insuficiente (R$ {resumo_caixa['saldo']:.2f}) para pagar esta compra (R$ {custo_total:.2f})!")
                 return
                 
         sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd)
         if sucesso:
             QMessageBox.information(self, "Estoque", msg)
-            self.input_est_sku.clear()
-            self.input_est_qtd.setValue(0)
+            self.acao_atualizar_caixa()
         else:
             QMessageBox.warning(self, "Aviso", msg)
 
     def acao_consultar_estoque(self):
         sku = self.input_est_sku.text().strip()
-        if not sku:
-            QMessageBox.warning(self, "Aviso", "Informe o SKU!")
-            return
-            
         saldo = database.consultar_saldo_estoque(sku)
-        QMessageBox.information(self, "Saldo de Estoque", f"O produto {sku} tem {saldo} unidades em estoque.")
+        QMessageBox.information(self, "Saldo", f"Produto {sku}: {saldo} unidades.")
 
-    # --------------- MÓDULO 3: FISCAL (CÁLCULO PHP) ---------------
+    # --------------- MÓDULO 3: FISCAL (INTEGRADO) ---------------
+    
     def acao_calcular_impostos(self):
+        """ Equivalente ao /invoice/intent: Calcula sem salvar """
         sku = self.input_fisc_sku.text().strip()
         qtd = self.input_fisc_qtd.value()
         
-        if not sku or qtd <= 0:
-            QMessageBox.warning(self, "Aviso", "Informe o SKU e a quantidade para calcular a nota.")
-            return
-            
         produto = database.buscar_produto(sku)
         if not produto:
-            QMessageBox.critical(self, "Erro", f"Produto com SKU '{sku}' não consta na base de dados (MOD1).")
+            QMessageBox.critical(self, "Erro", "SKU inválido!")
             return
-            
-        # Preparar o JSON para enviar ao PHP
-        dados_intent = {
-            "action": "calcular_nota",
-            "items": [
-                {
-                    "sku": produto["sku"],
-                    "preco_base": produto["preco_base"],
-                    "aliquota": produto["aliquota"],
-                    "quantidade": qtd
-                }
-            ]
-        }
-        
-        json_str = json.dumps(dados_intent)
-        
-        # 3. INTERAÇÃO EXTERNA (API / PHP)
-        # Executa o PHP via command line, simulando um backend REST com resposta JSON
+
+        # 1. Validar Estoque antes de calcular
+        saldo = database.consultar_saldo_estoque(sku)
+        if saldo < qtd:
+            QMessageBox.critical(self, "Sem Saldo", f"Você possui apenas {saldo} unidades em estoque!")
+            return
+
+        # Lógica de cálculo (18% imposto simulado ou vindo do banco)
+        valor_bruto = produto["preco_base"] * qtd
+        valor_imposto = valor_bruto * 0.18 # Ou produto["aliquota_imposto"]
+        valor_final = valor_bruto + valor_imposto
+
+        texto = (
+            f"--- INTENÇÃO DE NOTA ---\n"
+            f"Produto: {produto['nome']}\n"
+            f"Qtd Pedida: {qtd} (De {saldo} no estoque)\n"
+            f"Impostos: R$ {valor_imposto:.2f}\n"
+            f"Total: R$ {valor_final:.2f}\n"
+            f"Status: Rascunho (Não salvo)"
+        )
+        self.txt_fisc_resultado.setPlainText(texto)
+
+    def acao_confirmar_nota(self):
+        """ Equivalente ao /invoice/confirm: Transação e Baixa de Estoque """
+        sku = self.input_fisc_sku.text().strip()
+        qtd = self.input_fisc_qtd.value()
+
+        # Início da lógica de transação (Simulada via database.py)
+        # 1. Validar Estoque
+        saldo = database.consultar_saldo_estoque(sku)
+        if saldo < qtd:
+            QMessageBox.critical(self, "Erro", "Estoque insuficiente para confirmar venda!")
+            return
+
+        # 2. Processo Atômico: Baixa no estoque + Salvar Nota
         try:
-            # Requer que 'php' esteja instalado e adicionado nas variáveis de ambiente.
-            resultado = subprocess.run(["php", resource_path("backend_calculos.php"), json_str], capture_output=True, text=True, encoding='utf-8')
+            # Baixa estoque
+            database.registrar_movimentacao(sku, "saida", qtd)
             
-            if resultado.returncode != 0:
-                self.txt_fisc_resultado.setPlainText(f"Erro ao chamar o backend PHP: {resultado.stderr}")
-                return
-                
-            resposta_api = json.loads(resultado.stdout)
+            # Cálculo final
+            produto = database.buscar_produto(sku)
+            total = (produto["preco_base"] * qtd) * 1.18
             
-            if resposta_api.get("status") == "success":
-                data = resposta_api["data"]
-                texto_formatado = (
-                    f"--- INTEÇÃO DE NOTA FISCAL ---\n"
-                    f"Produto: {produto['nome']} ({qtd} uni.)\n"
-                    f"Valor Bruto: R$ {data['total_bruto']}\n"
-                    f"Valor Imposto: R$ {data['total_imposto']}\n"
-                    f"-------------------------------\n"
-                    f"VALOR FINAL: R$ {data['total_final']}\n\n"
-                    f"(Retornado pelo PHP 🐘)"
-                )
-                self.txt_fisc_resultado.setPlainText(texto_formatado)
+            # Salva nota no banco (Você precisará criar essa função no seu database.py)
+            sucesso, msg = database.salvar_nota_fiscal(sku, qtd, total)
+            
+            if sucesso:
+                QMessageBox.information(self, "Sucesso", "Nota Confirmada e Estoque Atualizado!")
+                self.acao_atualizar_caixa()
             else:
-                 self.txt_fisc_resultado.setPlainText(f"Erro reportado via PHP: {resposta_api.get('message')}")
-                 
-        except FileNotFoundError:
-             # Fallback: Cálculos via Python caso o PHP não esteja instalado.
-             preco_base = float(produto['preco_base'])
-             aliquota = float(produto['aliquota'])
-             quantidade = float(qtd)
-             
-             imposto_item = preco_base * aliquota * quantidade
-             total_item = (preco_base * quantidade) + imposto_item
-             total_bruto = preco_base * quantidade
-             
-             texto_formatado = (
-                 f"--- INTEÇÃO DE NOTA FISCAL (Modo Python Fallback) ---\n"
-                 f"Produto: {produto['nome']} ({qtd} uni.)\n"
-                 f"Valor Bruto: R$ {total_bruto:.2f}\n"
-                 f"Valor Imposto: R$ {imposto_item:.2f}\n"
-                 f"-------------------------------\n"
-                 f"VALOR FINAL: R$ {total_item:.2f}\n\n"
-                 f"(Aviso: PHP não encontrado. Cálculo executado via Python 🐍)"
-             )
-             self.txt_fisc_resultado.setPlainText(texto_formatado)
+                raise Exception("Erro ao salvar nota")
+                
         except Exception as e:
-            self.txt_fisc_resultado.setPlainText(f"Ocorreu um erro na requisição: {str(e)}")
+            QMessageBox.critical(self, "Erro Crítico", f"Falha na transação: {str(e)}")
 
     # --------------- MÓDULO 4: CAIXA ---------------
     def acao_atualizar_caixa(self):
-        if not hasattr(self, 'txt_caixa_saldo'):
-            return
-            
-        dados = database.consultar_resumo_caixa()
-        texto = (
-            f"=== EXTRATO SQUAD FISC ===\n"
-            f"Total Entradas: R$ {dados['entradas']:.2f}\n"
-            f"Total Saídas / Despesas: R$ {dados['despesas']:.2f}\n"
-            f"-----------------------------\n"
-            f"SALdo LÍQUIDO NO CAIXA: R$ {dados['saldo']:.2f}\n"
-        )
-        self.txt_caixa_saldo.setPlainText(texto)
+        if hasattr(self, 'txt_caixa_saldo'):
+            dados = database.consultar_resumo_caixa()
+            texto = (
+                f"=== EXTRATO SQUAD FISC ===\n"
+                f"Entradas: R$ {dados['entradas']:.2f}\n"
+                f"Saídas: R$ {dados['despesas']:.2f}\n"
+                f"SALDO ATUAL: R$ {dados['saldo']:.2f}"
+            )
+            self.txt_caixa_saldo.setPlainText(texto)
 
-
+# EXECUÇÃO DO APLICATIVO
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     janela = JanelaPrincipal()

@@ -52,9 +52,23 @@
          <widget class="QLineEdit" name="input_imposto"/>
         </item>
         <item row="4" column="1">
-         <widget class="QPushButton" name="btn_salvar_produto">
-          <property name="text"><string>Salvar / Cadastrar Produto</string></property>
-         </widget>
+         <layout class="QHBoxLayout">
+          <item>
+           <widget class="QPushButton" name="btn_salvar_produto">
+            <property name="text"><string>Salvar / Cadastrar Produto</string></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_excluir_produto">
+            <property name="text"><string>Excluir Produto</string></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_listar_produtos">
+            <property name="text"><string>Listar Produtos</string></property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
