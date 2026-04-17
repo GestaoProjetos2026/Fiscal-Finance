@@ -3,8 +3,28 @@ import os
 import json
 import subprocess
 from datetime import datetime
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QMessageBox,
+    QDialog, QVBoxLayout, QTextEdit, QPushButton, QLabel
+)
+from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QFont
 from PyQt6 import uic
+
+# ── Inicia o servidor Flask (api.py) como processo filho separado ──
+# Evita conflito de nomes e separa a API REST da UI desktop
+_API_APP = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "api.py")
+)
+_API_DIR = os.path.dirname(_API_APP)
+
+_api_process = subprocess.Popen(
+    [sys.executable, _API_APP],
+    cwd=_API_DIR,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
 import database
 
 # Configuração de caminho para o executável
@@ -44,6 +64,8 @@ class JanelaPrincipal(QMainWindow):
             self.btn_est_saida.clicked.connect(lambda: self.acao_estoque("saida"))
         if hasattr(self, 'btn_est_consultar'):
             self.btn_est_consultar.clicked.connect(self.acao_consultar_estoque)
+        if hasattr(self, 'btn_est_historico'):
+            self.btn_est_historico.clicked.connect(self.acao_historico_movimentacao)
             
         # --- Aba 3: Fiscal (SUA PARTE CRÍTICA) ---
         if hasattr(self, 'btn_fisc_calcular'):
@@ -62,6 +84,12 @@ class JanelaPrincipal(QMainWindow):
             self.tabWidget.currentChanged.connect(lambda idx: self.acao_atualizar_caixa())
 
         self.acao_atualizar_caixa()
+
+    def closeEvent(self, event):
+        """Encerra o processo da API Flask quando a janela fecha."""
+        if _api_process and _api_process.poll() is None:
+            _api_process.terminate()
+        event.accept()
 
     # --------------- MÓDULO 1: PRODUTOS ---------------
     def acao_salvar_produto(self):
@@ -138,8 +166,9 @@ class JanelaPrincipal(QMainWindow):
 
     # --------------- MÓDULO 2: ESTOQUE ---------------
     def acao_estoque(self, tipo):
-        sku = self.input_est_sku.text().strip()
-        qtd = self.input_est_qtd.value()
+        sku    = self.input_est_sku.text().strip()
+        qtd    = self.input_est_qtd.value()
+        motivo = self.input_est_motivo.text().strip() if hasattr(self, 'input_est_motivo') else ''
         
         if not sku or qtd <= 0:
             QMessageBox.warning(self, "Aviso", "Informe SKU e quantidade válida!")
@@ -148,7 +177,9 @@ class JanelaPrincipal(QMainWindow):
         if tipo == "saida":
             saldo = database.consultar_saldo_estoque(sku)
             if saldo < qtd:
-                QMessageBox.warning(self, "Sem Saldo", f"Saldo insuficiente: {saldo}")
+                # TASK 217: Bloquear saída com saldo insuficiente
+                QMessageBox.warning(self, "Sem Saldo",
+                    f"Saldo insuficiente!\nDisponível: {saldo} | Solicitado: {qtd}")
                 return
         elif tipo == "entrada":
             produto = database.buscar_produto(sku)
@@ -158,12 +189,17 @@ class JanelaPrincipal(QMainWindow):
             custo_total = produto["preco_base"] * qtd
             resumo_caixa = database.consultar_resumo_caixa()
             if resumo_caixa["saldo"] < custo_total:
-                QMessageBox.warning(self, "Saldo Insuficiente", f"Fluxo de caixa insuficiente (R$ {resumo_caixa['saldo']:.2f}) para pagar esta compra (R$ {custo_total:.2f})!")
+                QMessageBox.warning(self, "Saldo Insuficiente",
+                    f"Fluxo de caixa insuficiente (R$ {resumo_caixa['saldo']:.2f})"
+                    f" para pagar esta compra (R$ {custo_total:.2f})!")
                 return
-                
-        sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd)
+
+        # TASK 220: Passa o motivo registrado pelo usuário
+        sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd, motivo)
         if sucesso:
             QMessageBox.information(self, "Estoque", msg)
+            if hasattr(self, 'input_est_motivo'):
+                self.input_est_motivo.clear()
             self.acao_atualizar_caixa()
         else:
             QMessageBox.warning(self, "Aviso", msg)
@@ -172,6 +208,91 @@ class JanelaPrincipal(QMainWindow):
         sku = self.input_est_sku.text().strip()
         saldo = database.consultar_saldo_estoque(sku)
         QMessageBox.information(self, "Saldo", f"Produto {sku}: {saldo} unidades.")
+
+    def acao_historico_movimentacao(self):
+        """Abre janela de histórico de movimentações atualizada em tempo real."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("📦 Histórico de Movimentações — Tempo Real")
+        dlg.resize(620, 480)
+        dlg.setStyleSheet("""
+            QDialog { background-color: #1e1e2e; }
+            QLabel  { color: #cdd6f4; font-size: 13px; }
+            QTextEdit {
+                background-color: #181825;
+                color: #cdd6f4;
+                font-family: Consolas, monospace;
+                font-size: 12px;
+                border: 1px solid #45475a;
+                border-radius: 6px;
+                padding: 6px;
+            }
+            QPushButton {
+                background-color: #89b4fa;
+                color: #1e1e2e;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #74c7ec; }
+        """)
+
+        layout = QVBoxLayout(dlg)
+        layout.setSpacing(10)
+        layout.setContentsMargins(14, 14, 14, 14)
+
+        # Cabeçalho
+        titulo = QLabel("📋 Movimentações de Estoque (atualiza a cada 3s)")
+        titulo.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        layout.addWidget(titulo)
+
+        # Área de texto
+        txt = QTextEdit(dlg)
+        txt.setReadOnly(True)
+        layout.addWidget(txt)
+
+        # Indicador de status
+        status_label = QLabel("🟢 Ao vivo")
+        status_label.setStyleSheet("color: #a6e3a1; font-size: 11px;")
+        layout.addWidget(status_label)
+
+        # Botão fechar
+        btn_fechar = QPushButton("Fechar")
+        btn_fechar.clicked.connect(dlg.close)
+        layout.addWidget(btn_fechar)
+
+        def _atualizar():
+            """Busca as movimentações e atualiza o QTextEdit."""
+            movs = database.listar_historico_movimentacoes()
+            if not movs:
+                txt.setPlainText("Nenhuma movimentação registrada ainda.")
+                return
+
+            linhas = []
+            linhas.append(f"{'DATA/HORA':<22} {'SKU':<12} {'TIPO':<10} {'QTD':>6}  MOTIVO")
+            linhas.append("─" * 72)
+            for m in movs:
+                tipo = m.get('tipo', '').upper()
+                emoji = "🟢 ENTRADA" if tipo == "ENTRADA" else "🔴 SAÍDA  "
+                data  = m.get('data_mov', '')[:19].replace('T', ' ')
+                sku   = m.get('sku', '')
+                qtd   = m.get('quantidade', 0)
+                motivo = m.get('motivo', '') or '—'
+                linhas.append(f"{data:<22} {sku:<12} {emoji}  {qtd:>4}   {motivo}")
+
+            txt.setPlainText("\n".join(linhas))
+            # Rolagem automática para o topo (movimentação mais recente)
+            txt.verticalScrollBar().setValue(0)
+            status_label.setText(f"🟢 Ao vivo — última atualização: {datetime.now().strftime('%H:%M:%S')}")
+
+        # Timer de atualização em tempo real (3 segundos)
+        timer = QTimer(dlg)
+        timer.timeout.connect(_atualizar)
+        timer.start(3000)  # ms
+
+        _atualizar()   # primeira carga imediata
+        dlg.exec()
+        timer.stop()   # para o timer ao fechar
 
     # --------------- MÓDULO 3: FISCAL (INTEGRADO) ---------------
     

@@ -93,7 +93,15 @@
              <property name="maximum"><number>99999</number></property>
          </widget>
         </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_est_motivo"><property name="text"><string>Motivo:</string></property></widget>
+        </item>
         <item row="2" column="1">
+         <widget class="QLineEdit" name="input_est_motivo">
+          <property name="placeholderText"><string>Ex: Compra fornecedor, Venda cliente...</string></property>
+         </widget>
+        </item>
+        <item row="3" column="1">
          <layout class="QHBoxLayout">
           <item>
            <widget class="QPushButton" name="btn_est_entrada">
@@ -108,6 +116,11 @@
           <item>
            <widget class="QPushButton" name="btn_est_consultar">
             <property name="text"><string>Consultar Saldo</string></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_est_historico">
+            <property name="text"><string>📋 Histórico</string></property>
            </widget>
           </item>
          </layout>

@@ -118,16 +118,18 @@ def listar_produtos():
 
 # --------------- FUNÇÕES DE ESTOQUE ---------------
 
-def registrar_movimentacao(sku, tipo, qtd):
+def registrar_movimentacao(sku, tipo, qtd, motivo: str = ''):
+    """TASK 215/216: Registra entrada ou saída de estoque.
+    TASK 220: Aceita e persiste o motivo da movimentação."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
         
-        # 1. Registra a movimentação
+        # 1. Registra a movimentação com motivo
         cursor.execute('''
-            INSERT INTO estoque_mov (sku, tipo, quantidade, data_mov)
-            VALUES (?, ?, ?, ?)
-        ''', (sku, tipo, qtd, datetime.now().isoformat()))
+            INSERT INTO estoque_mov (sku, tipo, quantidade, motivo, data_mov)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (sku, tipo, qtd, motivo, datetime.now().isoformat()))
         
         # 2. Atualiza o saldo na tabela de produtos
         if tipo == "entrada":
@@ -141,6 +143,32 @@ def registrar_movimentacao(sku, tipo, qtd):
         return False, str(e)
     finally:
         conn.close()
+
+def listar_historico_movimentacoes(sku: str = None):
+    """Retorna todas as movimentações de estoque, mais recentes primeiro.
+    Se 'sku' for informado, filtra apenas aquele produto."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if sku:
+        cursor.execute("""
+            SELECT em.id, em.sku, p.nome, em.tipo, em.quantidade,
+                   COALESCE(em.motivo, '') AS motivo, em.data_mov
+            FROM estoque_mov em
+            LEFT JOIN produtos p ON em.sku = p.sku
+            WHERE em.sku = ?
+            ORDER BY em.data_mov DESC
+        """, (sku,))
+    else:
+        cursor.execute("""
+            SELECT em.id, em.sku, p.nome, em.tipo, em.quantidade,
+                   COALESCE(em.motivo, '') AS motivo, em.data_mov
+            FROM estoque_mov em
+            LEFT JOIN produtos p ON em.sku = p.sku
+            ORDER BY em.data_mov DESC
+        """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 def consultar_saldo_estoque(sku):
     conn = get_connection()
