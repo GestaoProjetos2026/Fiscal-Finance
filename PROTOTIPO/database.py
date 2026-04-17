@@ -185,3 +185,4 @@ def consultar_resumo_financeiro():
         "ticket_medio_entrada": round(ticket_entrada, 2),
         "ticket_medio_despesa": round(ticket_despesa, 2)
     }
+
