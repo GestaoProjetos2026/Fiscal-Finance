@@ -102,3 +102,33 @@ def consultar_resumo_caixa():
         "despesas": despesas,
         "saldo": entradas - despesas
     }
+
+def registrar_despesa(descricao, valor, data=None):
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+
+        if data:
+            cursor.execute(
+                """
+                INSERT INTO caixa (tipo, descricao, valor_liquido, data_registro)
+                VALUES ('despesa', ?, ?, ?)
+                """,
+                (descricao, valor, data)
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO caixa (tipo, descricao, valor_liquido)
+                VALUES ('despesa', ?, ?)
+                """,
+                (descricao, valor)
+            )
+
+        conn.commit()
+        conn.close()
+
+        return True, "Despesa registrada com sucesso."
+
+    except Exception as e:
+        return False, str(e)
