@@ -52,6 +52,8 @@ class JanelaPrincipal(QMainWindow):
         # --- Aba 5: Nota Fiscal (MOD5) ---
         if hasattr(self, 'btn_nf_criar'):
             self.btn_nf_criar.clicked.connect(self.acao_criar_nota_fiscal)
+        if hasattr(self, 'btn_nf_add_item'):
+            self.btn_nf_add_item.clicked.connect(self.acao_adicionar_item_nota)
 
         # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
@@ -253,6 +255,79 @@ class JanelaPrincipal(QMainWindow):
                 f"{status_icon} [{nf['status'].upper()}] Nº {nf['numero_nota']} | {nf['descricao']} | Criada em: {nf['data_criacao']}"
             )
         self.txt_nf_status.setPlainText("\n".join(linhas))
+
+    def acao_adicionar_item_nota(self):
+        numero = self.input_nf_item_nota.text().strip()
+        sku = self.input_nf_item_sku.text().strip()
+        qtd = self.input_nf_item_qtd.value()
+
+        if not numero or not sku:
+            QMessageBox.warning(self, "Aviso", "Informe o Número da Nota e o SKU do produto!")
+            return
+
+        # Busca a nota pelo número
+        nota = database.buscar_nota_por_numero(numero)
+        if not nota:
+            QMessageBox.critical(self, "Erro", f"Nota '{numero}' não encontrada. Crie a intenção primeiro.")
+            return
+
+        # Busca o produto pelo SKU
+        produto = database.buscar_produto(sku)
+        if not produto:
+            QMessageBox.critical(self, "Erro", f"Produto com SKU '{sku}' não cadastrado (use o Módulo 1).")
+            return
+
+        # Calcula e insere o item
+        sucesso, valores, msg = database.adicionar_item_nota(
+            nota['id'], sku, qtd,
+            produto['preco_base'], produto['aliquota']
+        )
+
+        if sucesso:
+            texto_calculo = (
+                f"Item adicionado à Nota {numero}:\n"
+                f"  Produto: {produto['nome']} (SKU: {sku})\n"
+                f"  Quantidade: {qtd} uni.\n"
+                f"  Preço Unitário: R$ {produto['preco_base']:.2f}\n"
+                f"  Alíquota: {produto['aliquota']*100:.1f}%\n"
+                f"  Valor Bruto: R$ {valores['valor_bruto']:.2f}\n"
+                f"  Imposto: R$ {valores['valor_imposto']:.2f}\n"
+                f"  Total do Item: R$ {valores['valor_total']:.2f}"
+            )
+            QMessageBox.information(self, "Item Calculado", texto_calculo)
+            self.input_nf_item_sku.clear()
+            self.input_nf_item_qtd.setValue(1)
+            self.acao_exibir_itens_nota(numero)
+        else:
+            QMessageBox.critical(self, "Erro", msg)
+
+    def acao_exibir_itens_nota(self, numero_nota=None):
+        if not hasattr(self, 'txt_nf_itens'):
+            return
+
+        if numero_nota is None:
+            numero_nota = self.input_nf_item_nota.text().strip()
+
+        nota = database.buscar_nota_por_numero(numero_nota)
+        if not nota:
+            self.txt_nf_itens.setPlainText(f"Nota '{numero_nota}' não encontrada.")
+            return
+
+        itens = database.listar_itens_nota(nota['id'])
+        if not itens:
+            self.txt_nf_itens.setPlainText(f"Nenhum item adicionado à nota {numero_nota} ainda.")
+            return
+
+        linhas = [f"=== ITENS DA NOTA {numero_nota} ==="]
+        for i, item in enumerate(itens, 1):
+            linhas.append(
+                f"[{i}] SKU: {item['sku']} | Qtd: {item['quantidade']} | "
+                f"Unit: R$ {item['preco_base']:.2f} | "
+                f"Bruto: R$ {item['valor_bruto']:.2f} | "
+                f"Imposto ({item['aliquota']*100:.1f}%): R$ {item['valor_imposto']:.2f} | "
+                f"Total: R$ {item['valor_total']:.2f}"
+            )
+        self.txt_nf_itens.setPlainText("\n".join(linhas))
 
 
 if __name__ == '__main__':

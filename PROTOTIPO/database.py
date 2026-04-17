@@ -170,3 +170,47 @@ def listar_notas():
         {"id": r[0], "numero_nota": r[1], "descricao": r[2], "status": r[3], "data_criacao": r[4]}
         for r in rows
     ]
+
+def adicionar_item_nota(nota_id, sku, quantidade, preco_base, aliquota):
+    """Calcula o imposto por item e insere na tabela itens_nota."""
+    valor_bruto = round(preco_base * quantidade, 2)
+    valor_imposto = round(preco_base * aliquota * quantidade, 2)
+    valor_total = round(valor_bruto + valor_imposto, 2)
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO itens_nota
+               (nota_id, sku, quantidade, preco_base, aliquota, valor_bruto, valor_imposto, valor_total)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (nota_id, sku, quantidade, preco_base, aliquota, valor_bruto, valor_imposto, valor_total)
+        )
+        conn.commit()
+        conn.close()
+        return True, {
+            "valor_bruto": valor_bruto,
+            "valor_imposto": valor_imposto,
+            "valor_total": valor_total
+        }, "Item adicionado com sucesso."
+    except Exception as e:
+        return False, None, str(e)
+
+def listar_itens_nota(nota_id):
+    """Retorna todos os itens de uma nota fiscal pelo seu ID."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT sku, quantidade, preco_base, aliquota, valor_bruto, valor_imposto, valor_total
+           FROM itens_nota WHERE nota_id=?""",
+        (nota_id,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [
+        {
+            "sku": r[0], "quantidade": r[1], "preco_base": r[2],
+            "aliquota": r[3], "valor_bruto": r[4],
+            "valor_imposto": r[5], "valor_total": r[6]
+        }
+        for r in rows
+    ]
