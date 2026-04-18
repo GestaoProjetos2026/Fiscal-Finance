@@ -105,12 +105,12 @@
          <layout class="QHBoxLayout">
           <item>
            <widget class="QPushButton" name="btn_est_entrada">
-            <property name="text"><string>Registrar ENTRADA</string></property>
+            <property name="text"><string>🛒 Comprar (Entrada)</string></property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="btn_est_saida">
-            <property name="text"><string>Registrar SAÍDA</string></property>
+            <property name="text"><string>💰 Vender (Saída)</string></property>
            </widget>
           </item>
           <item>

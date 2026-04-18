@@ -173,31 +173,47 @@ class JanelaPrincipal(QMainWindow):
         if not sku or qtd <= 0:
             QMessageBox.warning(self, "Aviso", "Informe SKU e quantidade válida!")
             return
-            
+
+        produto = database.buscar_produto(sku)
+        if not produto:
+            QMessageBox.warning(self, "Aviso", f"Produto '{sku}' não encontrado! Cadastre-o primeiro.")
+            return
+
         if tipo == "saida":
+            # SAÍDA = Venda do produto → estoque DIMINUI, empresa RECEBE dinheiro
             saldo = database.consultar_saldo_estoque(sku)
             if saldo < qtd:
-                # TASK 217: Bloquear saída com saldo insuficiente
-                QMessageBox.warning(self, "Sem Saldo",
-                    f"Saldo insuficiente!\nDisponível: {saldo} | Solicitado: {qtd}")
-                return
-        elif tipo == "entrada":
-            produto = database.buscar_produto(sku)
-            if not produto:
-                QMessageBox.warning(self, "Aviso", "Produto não encontrado!")
-                return
-            custo_total = produto["preco_base"] * qtd
-            resumo_caixa = database.consultar_resumo_caixa()
-            if resumo_caixa["saldo"] < custo_total:
-                QMessageBox.warning(self, "Saldo Insuficiente",
-                    f"Fluxo de caixa insuficiente (R$ {resumo_caixa['saldo']:.2f})"
-                    f" para pagar esta compra (R$ {custo_total:.2f})!")
+                QMessageBox.warning(self, "Estoque Insuficiente",
+                    f"Não é possível vender {qtd} unidade(s).\n"
+                    f"Estoque disponível: {saldo} unidade(s).")
                 return
 
-        # TASK 220: Passa o motivo registrado pelo usuário
+        elif tipo == "entrada":
+            # ENTRADA = Compra do produto → estoque AUMENTA, empresa GASTA dinheiro
+            custo_total = produto["preco_base"] * qtd
+            confirmacao = QMessageBox.question(
+                self, "Confirmar Compra",
+                f"Produto: {produto['nome']}\n"
+                f"Quantidade: {qtd} unidade(s)\n"
+                f"Custo total: R$ {custo_total:.2f}\n\n"
+                f"Confirmar entrada no estoque?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if confirmacao != QMessageBox.StandardButton.Yes:
+                return
+
         sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd, motivo)
         if sucesso:
-            QMessageBox.information(self, "Estoque", msg)
+            if tipo == "entrada":
+                custo = produto["preco_base"] * qtd
+                QMessageBox.information(self, "✅ Compra Registrada",
+                    f"Entrada de {qtd}x '{produto['nome']}' registrada!\n"
+                    f"Custo: R$ {custo:.2f}")
+            else:
+                receita = produto["preco_base"] * qtd * 1.18
+                QMessageBox.information(self, "✅ Venda Registrada",
+                    f"Saída de {qtd}x '{produto['nome']}' registrada!\n"
+                    f"Receita: R$ {receita:.2f}")
             if hasattr(self, 'input_est_motivo'):
                 self.input_est_motivo.clear()
             self.acao_atualizar_caixa()
@@ -365,10 +381,12 @@ class JanelaPrincipal(QMainWindow):
         if hasattr(self, 'txt_caixa_saldo'):
             dados = database.consultar_resumo_caixa()
             texto = (
-                f"=== EXTRATO SQUAD FISC ===\n"
-                f"Entradas: R$ {dados['entradas']:.2f}\n"
-                f"Saídas: R$ {dados['despesas']:.2f}\n"
-                f"SALDO ATUAL: R$ {dados['saldo']:.2f}"
+                f"=== EXTRATO FINANCEIRO ===\n"
+                f"\n"
+                f"  🟢 Receitas (Vendas):   R$ {dados['entradas']:.2f}\n"
+                f"  🔴 Custos (Compras):    R$ {dados['despesas']:.2f}\n"
+                f"  {'─' * 30}\n"
+                f"  💰 SALDO LÍQUIDO:       R$ {dados['saldo']:.2f}"
             )
             self.txt_caixa_saldo.setPlainText(texto)
 
