@@ -296,11 +296,17 @@ class JanelaPrincipal(QMainWindow):
 
         sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd, motivo)
         if sucesso:
-            if tipo == "entrada":
-                custo = produto["preco_base"] * qtd
-                QMessageBox.information(self, "✅ Compra Registrada",
-                    f"Entrada de {qtd}x '{produto['nome']}' registrada!\n"
-                    f"Custo: R$ {custo:.2f}")
+            database.registrar_log(
+                "INFO",
+                f"Movimentação {tipo} SKU {sku} quantidade {qtd}"
+                )
+            
+                if tipo == "entrada":
+                    custo = produto["preco_base"] * qtd
+                    
+                    QMessageBox.information(self, "✅ Compra Registrada",
+                        f"Entrada de {qtd}x '{produto['nome']}' registrada!\n"
+                        f"Custo: R$ {custo:.2f}")
             else:
                 receita = produto["preco_base"] * qtd * 1.18
                 QMessageBox.information(self, "✅ Venda Registrada",
