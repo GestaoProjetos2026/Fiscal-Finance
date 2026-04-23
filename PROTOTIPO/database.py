@@ -579,3 +579,22 @@ def consultar_resumo_financeiro():
         "ticket_medio_entrada":  round(ticket_entrada, 2),
         "ticket_medio_despesa":  round(ticket_despesa, 2)
     }
+    
+def listar_produtos_criticos(limite=5):
+    """
+    Retorna produtos com estoque igual ou abaixo do limite crítico.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT sku, nome, estoque
+        FROM produtos
+        WHERE estoque <= ?
+        ORDER BY estoque ASC, nome ASC
+    """, (limite,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
