@@ -41,7 +41,85 @@ class JanelaPrincipal(QMainWindow):
         
         # 1. CARREGA O DESENHO DA TELA (.ui)
         uic.loadUi(resource_path("tela_principal.ui"), self)
-        
+
+        # 2. RENOMEIA AS ABAS (remove "Módulo X:" — mantém .ui limpo para Qt Designer)
+        if hasattr(self, 'tabWidget'):
+            nomes = ["Produtos", "Estoque", "Fiscal", "Caixa", "Nota Fiscal"]
+            for i, nome in enumerate(nomes):
+                if i < self.tabWidget.count():
+                    self.tabWidget.setTabText(i, nome)
+
+        # 3. TEMA VISUAL — paleta suave, sem estilo Windows padrão
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background-color: #f0f2f5;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 13px;
+                color: #2c3e50;
+            }
+            QTabWidget::pane {
+                border: 1px solid #d0d7e3;
+                border-radius: 6px;
+                background-color: #ffffff;
+            }
+            QTabBar::tab {
+                background-color: #e2e8f0;
+                color: #4a5568;
+                padding: 8px 18px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background-color: #ffffff;
+                color: #2b6cb0;
+                font-weight: bold;
+                border-bottom: 2px solid #2b6cb0;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: #cbd5e0;
+            }
+            QPushButton {
+                background-color: #2b6cb0;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 6px 14px;
+            }
+            QPushButton:hover {
+                background-color: #2c5282;
+            }
+            QPushButton:pressed {
+                background-color: #1a365d;
+            }
+            QLineEdit, QSpinBox, QTextEdit {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e0;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: #2d3748;
+            }
+            QLineEdit:focus, QSpinBox:focus, QTextEdit:focus {
+                border: 1px solid #2b6cb0;
+            }
+            QLabel {
+                color: #4a5568;
+            }
+            QGroupBox {
+                border: 1px solid #d0d7e3;
+                border-radius: 6px;
+                margin-top: 10px;
+                padding: 8px;
+                background-color: #f7fafc;
+            }
+            QGroupBox::title {
+                color: #2b6cb0;
+                font-weight: bold;
+                subcontrol-origin: margin;
+                left: 10px;
+            }
+        """)
+
         # Inicia o Banco de Dados
         database.init_db()
         
