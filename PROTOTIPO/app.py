@@ -306,6 +306,16 @@ class JanelaPrincipal(QMainWindow):
                 QMessageBox.information(self, "✅ Venda Registrada",
                     f"Saída de {qtd}x '{produto['nome']}' registrada!\n"
                     f"Receita: R$ {receita:.2f}")
+                
+                    saldo_atual = database.consultar_saldo_estoque(sku)
+
+                    if saldo_atual <= 5:
+                        QMessageBox.warning(
+                            self,
+                            "⚠ Estoque Mínimo",
+                            f"O produto '{produto['nome']}' está com estoque baixo.\n"
+                            f"Saldo atual: {saldo_atual} unidade(s)."
+                        )
             if hasattr(self, 'input_est_motivo'):
                 self.input_est_motivo.clear()
             self.acao_atualizar_caixa()
