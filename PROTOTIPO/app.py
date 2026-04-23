@@ -258,75 +258,92 @@ class JanelaPrincipal(QMainWindow):
 
     # --------------- MÓDULO 2: ESTOQUE ---------------
     def acao_estoque(self, tipo):
-        sku    = self.input_est_sku.text().strip()
-        qtd    = self.input_est_qtd.value()
-        motivo = self.input_est_motivo.text().strip() if hasattr(self, 'input_est_motivo') else ''
+        try:
+            sku    = self.input_est_sku.text().strip()
+            qtd    = self.input_est_qtd.value()
+            motivo = self.input_est_motivo.text().strip() if hasattr(self, 'input_est_motivo') else ''
         
-        if not sku or qtd <= 0:
-            QMessageBox.warning(self, "Aviso", "Informe SKU e quantidade válida!")
-            return
-
-        produto = database.buscar_produto(sku)
-        if not produto:
-            QMessageBox.warning(self, "Aviso", f"Produto '{sku}' não encontrado! Cadastre-o primeiro.")
-            return
-
-        if tipo == "saida":
-            # SAÍDA = Venda do produto → estoque DIMINUI, empresa RECEBE dinheiro
-            saldo = database.consultar_saldo_estoque(sku)
-            if saldo < qtd:
-                QMessageBox.warning(self, "Estoque Insuficiente",
-                    f"Não é possível vender {qtd} unidade(s).\n"
-                    f"Estoque disponível: {saldo} unidade(s).")
+            if not sku or qtd <= 0:
+                QMessageBox.warning(self, "Aviso", "Informe SKU e quantidade válida!")
                 return
 
-        elif tipo == "entrada":
-            # ENTRADA = Compra do produto → estoque AUMENTA, empresa GASTA dinheiro
-            custo_total = produto["preco_base"] * qtd
-            confirmacao = QMessageBox.question(
-                self, "Confirmar Compra",
-                f"Produto: {produto['nome']}\n"
-                f"Quantidade: {qtd} unidade(s)\n"
-                f"Custo total: R$ {custo_total:.2f}\n\n"
-                f"Confirmar entrada no estoque?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if confirmacao != QMessageBox.StandardButton.Yes:
+            produto = database.buscar_produto(sku)
+            if not produto:
+                QMessageBox.warning(self, "Aviso", f"Produto '{sku}' não encontrado! Cadastre-o primeiro.")
                 return
 
-        sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd, motivo)
-        if sucesso:
-            database.registrar_log(
-                "INFO",
-                f"Movimentação {tipo} SKU {sku} quantidade {qtd}"
+            if tipo == "saida":
+                # SAÍDA = Venda do produto → estoque DIMINUI, empresa RECEBE dinheiro
+                saldo = database.consultar_saldo_estoque(sku)
+                if saldo < qtd:
+                    QMessageBox.warning(self, "Estoque Insuficiente",
+                        f"Não é possível vender {qtd} unidade(s).\n"
+                        f"Estoque disponível: {saldo} unidade(s).")
+                    return
+    
+            elif tipo == "entrada":
+                # ENTRADA = Compra do produto → estoque AUMENTA, empresa GASTA dinheiro
+                custo_total = produto["preco_base"] * qtd
+                confirmacao = QMessageBox.question(
+                    self, "Confirmar Compra",
+                    f"Produto: {produto['nome']}\n"
+                    f"Quantidade: {qtd} unidade(s)\n"
+                    f"Custo total: R$ {custo_total:.2f}\n\n"
+                    f"Confirmar entrada no estoque?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
-            
-                if tipo == "entrada":
-                    custo = produto["preco_base"] * qtd
-                    
-                    QMessageBox.information(self, "✅ Compra Registrada",
-                        f"Entrada de {qtd}x '{produto['nome']}' registrada!\n"
-                        f"Custo: R$ {custo:.2f}")
-            else:
-                receita = produto["preco_base"] * qtd * 1.18
-                QMessageBox.information(self, "✅ Venda Registrada",
-                    f"Saída de {qtd}x '{produto['nome']}' registrada!\n"
-                    f"Receita: R$ {receita:.2f}")
+                if confirmacao != QMessageBox.StandardButton.Yes:
+                    return
+    
+            sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd, motivo)
+            if sucesso:
+                database.registrar_log(
+                    "INFO",
+                    f"Movimentação {tipo} SKU {sku} quantidade {qtd}"
+                    )
                 
-                    saldo_atual = database.consultar_saldo_estoque(sku)
+                    if tipo == "entrada":
+                        custo = produto["preco_base"] * qtd
+                        
+                        QMessageBox.information(self, "✅ Compra Registrada",
+                            f"Entrada de {qtd}x '{produto['nome']}' registrada!\n"
+                            f"Custo: R$ {custo:.2f}")
+                else:
+                    receita = produto["preco_base"] * qtd * 1.18
+                    QMessageBox.information(self, "✅ Venda Registrada",
+                        f"Saída de {qtd}x '{produto['nome']}' registrada!\n"
+                        f"Receita: R$ {receita:.2f}")
+                    
+                        saldo_atual = database.consultar_saldo_estoque(sku)
+    
+                        if saldo_atual <= 5:
+                            QMessageBox.warning(
+                                self,
+                                "⚠ Estoque Mínimo",
+                                f"O produto '{produto['nome']}' está com estoque baixo.\n"
+                                f"Saldo atual: {saldo_atual} unidade(s)."
+                            )
+                if hasattr(self, 'input_est_motivo'):
+                    self.input_est_motivo.clear()
+                self.acao_atualizar_caixa()
+            else:
+                QMessageBox.warning(self, "Aviso", msg)
+                
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Erro",
+                "Quantidade inválida. Digite apenas números."
+            )
 
-                    if saldo_atual <= 5:
-                        QMessageBox.warning(
-                            self,
-                            "⚠ Estoque Mínimo",
-                            f"O produto '{produto['nome']}' está com estoque baixo.\n"
-                            f"Saldo atual: {saldo_atual} unidade(s)."
-                        )
-            if hasattr(self, 'input_est_motivo'):
-                self.input_est_motivo.clear()
-            self.acao_atualizar_caixa()
-        else:
-            QMessageBox.warning(self, "Aviso", msg)
+        except Exception as e:
+            database.registrar_log("ERROR", str(e))
+
+            QMessageBox.critical(
+                self,
+                "Erro Crítico",
+                f"Ocorreu um erro inesperado:\n{str(e)}"
+            )
 
     def acao_consultar_estoque(self):
         sku = self.input_est_sku.text().strip()
