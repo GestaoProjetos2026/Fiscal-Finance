@@ -1,0 +1,17 @@
+$kind: http-request
+name: POST Create Product
+method: POST
+url: 'http://localhost:5000/v1/fisc/products'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "sku": "PROD-TEST-001",
+      "nome": "Produto Teste",
+      "preco_base": 10.00,
+      "aliquota_imposto": 0.12
+    }

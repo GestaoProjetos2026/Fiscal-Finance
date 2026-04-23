@@ -5,6 +5,20 @@ import subprocess
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PyQt6 import uic
 
+# ── Inicia a API Flask (src/app.py) como processo filho separado ──
+# Usar subprocess evita conflito de nomes entre PROTOTIPO/app.py e src/app.py
+_SRC_APP = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "app.py")
+)
+_SRC_DIR = os.path.dirname(_SRC_APP)
+
+_api_process = subprocess.Popen(
+    [sys.executable, _SRC_APP],
+    cwd=_SRC_DIR,           # roda de dentro de src/ para os imports funcionarem
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
@@ -51,6 +65,12 @@ class JanelaPrincipal(QMainWindow):
 
         # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
+
+    def closeEvent(self, event):
+        """Encerra o processo da API Flask quando a janela fecha."""
+        if _api_process and _api_process.poll() is None:  # se ainda estiver rodando
+            _api_process.terminate()
+        event.accept()
 
     # --------------- MÓDULO 1: PRODUTOS ---------------
     def acao_salvar_produto(self):
