@@ -598,3 +598,11 @@ def listar_produtos_criticos(limite=5):
     conn.close()
 
     return [dict(row) for row in rows]
+
+def registrar_log(nivel, mensagem):
+    from datetime import datetime
+
+    data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with open("logs.txt", "a", encoding="utf-8") as arquivo:
+        arquivo.write(f"{data} | {nivel.upper()} | {mensagem}\n")
