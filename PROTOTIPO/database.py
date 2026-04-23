@@ -475,23 +475,37 @@ def emitir_nota_fiscal(numero):
 # --------------- FUNÇÕES DE CAIXA ---------------
 
 def consultar_resumo_caixa():
-    """Calcula o total de entradas e despesas do caixa."""
+    """Calcula o Fluxo de Caixa a partir das movimentações de estoque.
+    Receitas  = saídas de estoque (vendas)   × preco_base × 1.18
+    Despesas  = entradas de estoque (compras) × preco_base
+    """
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT SUM(valor_liquido) FROM caixa WHERE tipo='entrada'")
-    entradas = cursor.fetchone()[0] or 0
+    # Receitas: cada venda (saída de estoque) gera receita com imposto embutido
+    cursor.execute("""
+        SELECT SUM(e.quantidade * p.preco_base * 1.18)
+        FROM estoque_mov e
+        JOIN produtos p ON e.sku = p.sku
+        WHERE e.tipo = 'saida'
+    """)
+    total_vendas = cursor.fetchone()[0] or 0.0
 
-    cursor.execute("SELECT SUM(valor_liquido) FROM caixa WHERE tipo='despesa'")
-    despesas = cursor.fetchone()[0] or 0
+    # Despesas: cada compra (entrada de estoque) gera custo ao preço base
+    cursor.execute("""
+        SELECT SUM(e.quantidade * p.preco_base)
+        FROM estoque_mov e
+        JOIN produtos p ON e.sku = p.sku
+        WHERE e.tipo = 'entrada'
+    """)
+    total_compras = cursor.fetchone()[0] or 0.0
 
-    saldo = entradas - despesas
     conn.close()
 
     return {
-        "entradas": round(entradas, 2),
-        "despesas": round(despesas, 2),
-        "saldo":    round(saldo, 2)
+        "entradas": round(total_vendas,  2),
+        "despesas": round(total_compras, 2),
+        "saldo":    round(total_vendas - total_compras, 2)
     }
 
 def registrar_despesa(descricao, valor, data=None):
