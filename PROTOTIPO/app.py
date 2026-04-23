@@ -159,7 +159,7 @@ class JanelaPrincipal(QMainWindow):
             
         # Atualização em tempo real ao navegar pelas abas
         if hasattr(self, 'tabWidget'):
-            self.tabWidget.currentChanged.connect(lambda idx: self.acao_atualizar_caixa())
+            self.tabWidget.currentChanged.connect(self.ao_trocar_aba)
 
         # --- Aba 5: Nota Fiscal (MOD5) ---
         if hasattr(self, 'btn_nf_criar'):
@@ -693,7 +693,12 @@ class JanelaPrincipal(QMainWindow):
         else:
             QMessageBox.critical(self, "❌ Erro na Emissão", mensagem)
 
+    def ao_trocar_aba(self, idx):
+    self.acao_atualizar_caixa()
 
+    if idx == 1:
+        self.acao_produtos_criticos()
+        
 # EXECUÇÃO DO APLICATIVO
 if __name__ == '__main__':
     app = QApplication(sys.argv)
