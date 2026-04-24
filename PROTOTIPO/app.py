@@ -11,6 +11,11 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QFont
 from PyQt6 import uic
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+
 # ── Inicia o servidor Flask (api.py) como processo filho separado ──
 # Evita conflito de nomes e separa a API REST da UI desktop
 _API_APP = os.path.normpath(
@@ -126,6 +131,54 @@ class JanelaPrincipal(QMainWindow):
             self.lbl_dash_valor_est.setText(f"Valor Custo Total: R$ {est['valor_total']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         except Exception as e:
             print(f"Erro ao carregar indicadores de estoque do dashboard: {e}")
+            
+        # 3. Gráficos
+        self.renderizar_graficos()
+        
+    def renderizar_graficos(self):
+        """Renderiza um gráfico de barras comparando Entradas x Despesas."""
+        if not hasattr(self, 'widget_dash_grafico'):
+            return
+            
+        # Puxa o layout vertical onde o gráfico vai morar
+        layout = self.widget_dash_grafico.layout()
+        if not layout:
+            return
+            
+        # Limpa o layout se já tiver um gráfico antigo
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+                
+        try:
+            caixa = database.consultar_resumo_caixa()
+            entradas = caixa['entradas']
+            despesas = caixa['despesas']
+            
+            # Cria a figura e o canvas do Matplotlib
+            fig = Figure(figsize=(5, 4), dpi=100)
+            canvas = FigureCanvasQTAgg(fig)
+            
+            # Adiciona o eixo (ax)
+            ax = fig.add_subplot(111)
+            
+            # Desenha as barras
+            barras = ax.bar(['Receitas', 'Despesas'], [entradas, despesas], color=['#40a02b', '#d20f39'])
+            ax.set_title('Balanço Financeiro (Módulo de Estoque)')
+            ax.set_ylabel('Valor (R$)')
+            
+            # Adiciona os valores em cima de cada barra
+            ax.bar_label(barras, fmt='R$ %.2f')
+            
+            # Ajusta o layout para não cortar labels
+            fig.tight_layout()
+            
+            # Adiciona o canvas ao widget do PyQt
+            layout.addWidget(canvas)
+            
+        except Exception as e:
+            print(f"Erro ao renderizar gráficos: {e}")
 
     def closeEvent(self, event):
         """Encerra o processo da API Flask quando a janela fecha."""
