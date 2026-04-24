@@ -109,8 +109,15 @@ class JanelaPrincipal(QMainWindow):
         """Atualiza os indicadores na tela de Dashboard."""
         if not hasattr(self, 'lbl_dash_receitas'):
             return
-        # Os indicadores serão preenchidos nos próximos passos
-        pass
+            
+        # 1. Indicadores Financeiros
+        try:
+            caixa = database.consultar_resumo_caixa()
+            self.lbl_dash_receitas.setText(f"Receitas: R$ {caixa['entradas']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+            self.lbl_dash_despesas.setText(f"Despesas: R$ {caixa['despesas']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+            self.lbl_dash_saldo.setText(f"Saldo: R$ {caixa['saldo']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        except Exception as e:
+            print(f"Erro ao carregar indicadores financeiros do dashboard: {e}")
 
     def closeEvent(self, event):
         """Encerra o processo da API Flask quando a janela fecha."""
