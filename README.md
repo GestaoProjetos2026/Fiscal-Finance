@@ -1,273 +1,689 @@
-# PRD — Squad FISC: Fiscal, Financeiro & Estoque
-**Produto:** Emissão de NFe/NFSe · Fluxo de Caixa · Controle de Inventário  
-**Versão:** 1.0 · **Sprint:** 1 · **Status:** Em revisão · **Data:** 09/03/2026
+# PRD v4.0 — SQUAD FISC
+**Sistema Fiscal, Financeiro e Estoque Integrado**
+
+> Versão: 4.0 | Status: Em Execução | Última revisão: Abril/2026
 
 ---
 
-## Índice de Módulos
-1. FISC-MOD1 — Cadastro de Produtos
-2. FISC-MOD2 — Controle de Inventário (Estoque)
-3. FISC-MOD3 — Calculadora Fiscal / Intenção de NFe e NFSe
-4. FISC-MOD4 — Fluxo de Caixa
+## SUMÁRIO
+
+1. Visão Geral
+2. Problema de Negócio
+3. Objetivos do Produto
+4. Público-Alvo / Personas
+5. Escopo do Produto
+6. Stack Tecnológica
+7. Arquitetura Técnica
+8. Fluxo Principal do Sistema
+9. Modelo de Dados
+10. Roadmap — Sprint 1: PRD e MVP do Banco de Dados
+11. Roadmap — Sprint 2: Sistema Base e Módulos Core
+12. Roadmap — Sprint 3: Telas, Dashboard, Regras e UX
+13. Roadmap — Sprint 4: Integração Total e Infraestrutura
+14. Roadmap — Sprint 5: Entrega Final
+15. Requisitos Não-Funcionais
+16. Segurança
+17. Métricas de Sucesso
+18. Riscos e Mitigações
+19. Definição de Pronto (DoD Geral)
+20. Futuro do Produto
 
 ---
 
-# FISC-MOD1 — Cadastro de Produtos
+## 1. VISÃO GERAL
 
-### 1. Visão Geral e Proposta de Valor
-**Problema:** Sem um catálogo centralizado, o estoque opera às cegas sobre o preço e o setor fiscal não sabe qual alíquota aplicar. O uso de planilhas paralelas entre setores gera inconsistência de dados, furos no caixa e erros na tributação.  
-**Proposta de Valor:** Centralizar os metadados de cada item (SKU, descrição, precificação e tributação) em um único registro imutável que alimenta automaticamente as operações de estoque e o motor de cálculo fiscal.  
-**Oportunidade de Venda:** Todo negócio físico precisa de um catálogo estruturado antes de operar. Este módulo é a base que desbloqueia todos os demais — sem ele, estoque e fiscal não funcionam. É o gatilho de entrada natural de qualquer cliente novo.
-
-### 2. Personas
-* **Lojista / Gerente:** Cadastrar, editar e remover produtos do catálogo para manter a base atualizada.
-* **Estoquista:** Consultar as especificações do produto antes de registrar movimentações físicas.
-* **Contador:** Verificar e auditar a alíquota de imposto atrelada a cada produto para garantir conformidade.
-
-### 3. Requisitos Funcionais (RF)
-* **RF01 Criar produto:** Cadastrar produto exigindo SKU (alfanumérico, único), Nome, Preço Base (R$ > 0) e Alíquota de Imposto (% de 0 a 100).
-* **RF02 Listar produtos:** Exibir o catálogo de produtos cadastrados com suporte a paginação.
-* **RF03 Buscar produto:** Localizar um produto por correspondência exata de SKU ou parcial de Nome.
-* **RF04 Editar produto:** Alterar Nome, Preço Base e Alíquota. O campo SKU é chave de negócio e **não pode ser alterado**.
-* **RF05 Remover produto:** Realizar *soft delete* apenas se o módulo de Estoque confirmar que não há movimentações associadas.
-* **RF06 Validar SKU único:** Rejeitar criação de produtos com SKU já existente no mesmo Tenant, retornando erro claro.
-
-### 4. Requisitos Não-Funcionais (RNF)
-* **RNF01 Segurança:** Apenas usuários autenticados podem interagir com a API. Dados obrigatoriamente isolados por empresa (`tenant_id`).
-* **RNF02 Integridade:** O campo SKU deve ter restrição `UNIQUE INDEX` no banco de dados, combinada com o `tenant_id`.
-* **RNF03 Performance:** Listagem e busca de até 10.000 produtos devem retornar em menos de 200ms na API.
-* **RNF04 Escalabilidade:** O serviço deve suportar leituras em alta concorrência. Gravações devem garantir lock para evitar conflitos de SKU.
-
-### 5. Especificação Técnica e Integração
-**Endpoints de API:**
-* `POST /v1/fisc/products` (201 Created)
-* `GET /v1/fisc/products?page=1&limit=50` (200 OK)
-* `GET /v1/fisc/products/{sku}` (200 OK / 404 Not Found)
-* `PUT /v1/fisc/products/{sku}` (200 OK)
-* `DELETE /v1/fisc/products/{sku}` (204 No Content / 409 Conflict)
-
-**Webhooks disparados:**
-* `product.created`: Payload `{ sku, nome, preco_base, aliquota_imposto }`. Consumidores: MOD2 (Estoque), MOD3 (Fiscal).
-* `product.updated`: Payload `{ sku, campos_alterados }`. Consumidores: MOD2, MOD3.
-* `product.deleted`: Payload `{ sku }`. Consumidores: MOD2.
-
-**Estrutura de dados (JSON):**
-```json
-{
-  "sku": "CAN-AZUL-001",
-  "nome": "Caneta Azul BIC",
-  "preco_base": 2.50,
-  "aliquota_imposto": 12.00
-}
-```
-
-### 6. User Stories
-* "Como Lojista, eu quero cadastrar produtos de forma centralizada para garantir que estoque e fiscal usem sempre as mesmas informações."
-* "Como Contador, eu quero consultar a alíquota de imposto de cada produto para validar os cálculos fiscais sem depender de planilhas."
-
-### 7. Critérios de Aceite
-* [ ] É possível criar produto com SKU, Nome, Preço Base e Alíquota.
-* [ ] SKU duplicado é rejeitado com status HTTP 400 ou 409.
-* [ ] É possível listar, buscar, editar e remover produtos.
-* [ ] Produto com histórico no MOD2 (Estoque) não pode ser removido (retorna erro).
-* [ ] Produto recém-cadastrado notifica o MOD2 para iniciar saldo zerado.
-
-### 8. Definição de Pronto (DoD)
-* [ ] Código revisado por outro membro do Squad.
-* [ ] Testes unitários com >80% de cobertura.
-* [ ] Documentação da API atualizada (Swagger/OpenAPI).
-* [ ] Pipeline de CI/CD passando.
+O Squad FISC é responsável pelo desenvolvimento de um sistema ERP desktop voltado para pequenas e médias empresas brasileiras. O sistema centraliza operações críticas de gestão fiscal, controle de estoque e controle financeiro em uma única plataforma de uso local, desenvolvida em Python com interface gráfica nativa.
 
 ---
 
-# FISC-MOD2 — Controle de Inventário (Estoque)
+## 2. PROBLEMA DE NEGÓCIO
 
-### 1. Visão Geral e Proposta de Valor
-**Problema:** Sem controle de estoque em tempo real, vendas são confirmadas sem produto disponível ou capital fica parado em excesso de inventário sem rastreabilidade.  
-**Proposta de Valor:** Registrar cada entrada e saída em tempo real (Ledger), mantendo o saldo sempre conciso e impedindo rupturas de estoque no momento da venda.
+Empresas menores costumam operar com:
 
-### 2. Personas
-* **Estoquista:** Registrar entradas (compras/devoluções) e saídas manuais (avarias).
-* **Lojista / Gerente:** Consultar saldo atual e log histórico de movimentações.
-* **Sistema (Integração):** Acionar saída automática de estoque ao confirmar uma venda no MOD3.
+- Planilhas manuais sem integração entre setores
+- Estoque sem rastreabilidade em tempo real
+- Caixa descentralizado e difícil de auditar
+- Impostos calculados manualmente com risco de erro fiscal
+- Falta de indicadores para tomada de decisão
 
-### 3. Requisitos Funcionais (RF)
-* **RF01 Registrar entrada:** Adicionar X unidades ao estoque informando SKU e quantidade.
-* **RF02 Registrar saída:** Retirar X unidades do estoque informando SKU e quantidade.
-* **RF03 Bloquear saída negativa:** Rejeitar saída maior que o saldo disponível com mensagem: "Estoque insuficiente. Saldo atual: X."
-* **RF04 Consultar saldo:** Exibir a quantidade atual disponível de um produto pelo SKU.
-* **RF05 Histórico (Ledger):** Exibir todas as movimentações imutáveis de um produto com data, hora, quantidade e tipo (IN/OUT).
-* **RF06 Registrar motivo:** Exigir motivo da movimentação (ex: VENDA, COMPRA, AJUSTE, AVARIA).
-
-### 4. Requisitos Não-Funcionais (RNF)
-* **RNF01 Atomicidade:** A baixa de estoque via venda deve ocorrer em transação com a emissão da nota.
-* **RNF02 Rastreabilidade:** Movimentações são imutáveis (*Append-Only*). Correções exigem registro de estorno.
-* **RNF03 Performance:** Consulta de saldo em tempo real deve responder em menos de 100ms.
-* **RNF04 Escalabilidade e Concorrência:** Uso de *Optimistic Locking* no banco de dados para evitar condição de corrida em vendas simultâneas do mesmo SKU.
-
-### 5. Especificação Técnica e Integração
-**Endpoints de API:**
-* `POST /v1/fisc/stock/entry` (201 Created)
-* `POST /v1/fisc/stock/exit` (201 Created / 422 Unprocessable Entity)
-* `GET /v1/fisc/stock/{sku}/balance` (200 OK)
-* `GET /v1/fisc/stock/{sku}/history` (200 OK)
-
-**Webhooks disparados:**
-* `stock.entry_registered`: Payload `{ sku, qtde, saldo_atual, motivo }`. Consumidor: MOD4 (se compra).
-* `stock.exit_registered`: Payload `{ sku, qtde, saldo_atual, origem_id }`. Consumidor: MOD3.
-* `stock.insufficient`: Payload `{ sku, saldo_atual, qtde_solicitada }`. Consumidor: MOD3 (bloqueia nota).
-
-**Estrutura de dados (JSON):**
-```json
-{
-  "sku": "CAN-AZUL-001",
-  "quantidade": 50,
-  "tipo": "IN",
-  "motivo": "COMPRA",
-  "saldo_resultante": 50
-}
-```
-
-### 6. User Stories
-* "Como Estoquista, eu quero registrar entradas e saídas com seus devidos motivos para manter o inventário fiel ao físico."
-* "Como Lojista, eu quero consultar o histórico imutável de um produto para rastrear quebras ou sumiços."
-
-### 7. Critérios de Aceite
-* [ ] É possível registrar entrada de X unidades para um SKU válido.
-* [ ] É possível registrar saída de X unidades para um SKU válido.
-* [ ] Tentativa de saída maior que o saldo atual retorna erro 422 e a transação é cancelada.
-* [ ] Histórico de movimentações exibe o log exato de todas as transações de um SKU.
-
-### 8. Definição de Pronto (DoD)
-* [ ] Código revisado por outro membro do Squad.
-* [ ] Testes unitários com >80% de cobertura.
-* [ ] Documentação da API atualizada (Swagger/OpenAPI).
-* [ ] Pipeline de CI/CD passando.
+**Consequências diretas:**
+- Erros operacionais e retrabalho
+- Perdas financeiras por vendas sem estoque
+- Risco de autuação fiscal
+- Baixa produtividade do time
 
 ---
 
-# FISC-MOD3 — Calculadora Fiscal / Intenção de NFe e NFSe
+## 3. OBJETIVOS DO PRODUTO
 
-### 1. Visão Geral e Proposta de Valor
-**Problema:** Calcular impostos manualmente por venda é lento e sujeito a erro humano, gerando riscos de autuação fiscal e multas.  
-**Proposta de Valor:** Motor de regras que recebe um carrinho de produtos, cruza com as alíquotas do MOD1 e gera automaticamente um objeto estruturado (JSON) da nota fiscal.  
-**Escopo:** Gera o objeto de dados fiscal calculado. A integração síncrona com SEFAZ/Prefeituras fica para versões futuras.
+Criar uma plataforma desktop única capaz de:
 
-### 2. Personas
-* **Sistema (PDV/E-commerce):** Envia a requisição com os itens vendidos para cálculo instantâneo.
-* **Contador:** Acessa as intenções geradas para auditoria de tributos.
-
-### 3. Requisitos Funcionais (RF)
-* **RF01 Gerar intenção de nota:** Receber array de itens (SKU + quantidade) e retornar o JSON detalhado da tributação.
-* **RF02 Calcular imposto por item:** Executar a fórmula: `imposto = preco_base × (aliquota_imposto / 100) × quantidade`.
-* **RF03 Calcular totais:** Somar os valores no cabeçalho: Valor Bruto Total, Imposto Total e Valor Líquido.
-* **RF04 Validar SKUs e Saldo:** Validar se o SKU existe (via MOD1) e se há saldo (via MOD2) antes de gerar a intenção.
-* **RF05 Acionar eventos:** Após confirmar a intenção, disparar a ordem de baixa no estoque e lançamento financeiro.
-
-### 4. Requisitos Não-Funcionais (RNF)
-* **RNF01 Precisão Numérica:** O backend deve armazenar e calcular valores usando tipos adequados (ex: `Decimal` ou `Numeric`), não `Float`, para evitar perda de precisão em centavos.
-* **RNF02 Resiliência:** Caso a requisição para o MOD1 ou MOD2 falhe durante a validação, a intenção de NFe deve ser abortada com *timeout* claro.
-* **RNF03 Isolamento:** Garantir que o cálculo é aplicado usando os dados do respectivo `tenant_id`.
-
-### 5. Especificação Técnica e Integração
-**Endpoints de API:**
-* `POST /v1/fisc/invoices/intent` (201 Created)
-* `GET /v1/fisc/invoices/{id}` (200 OK)
-
-**Webhooks disparados:**
-* `invoice.generated`: Payload `{ invoice_id, total_bruto, total_imposto, total_liquido }`. Consumidores: MOD2 (baixa de estoque), MOD4 (entrada financeira).
-
-**Estrutura de dados (JSON):**
-```json
-{
-  "invoice_id": "inv_12345",
-  "items": [
-    {
-      "sku": "CAN-AZUL-001",
-      "quantidade": 2,
-      "imposto_calculado": 0.60
-    }
-  ],
-  "totais": {
-    "valor_bruto": 5.00,
-    "total_impostos": 0.60,
-    "valor_liquido": 4.40
-  }
-}
-```
-
-### 6. User Stories
-* "Como PDV (Sistema), eu quero enviar um carrinho de SKUs para que o motor fiscal me devolva os totais com impostos calculados em milissegundos."
-* "Como Contador, eu quero que as intenções de notas tragam o detalhamento do imposto por item para evitar autuações."
-
-### 7. Critérios de Aceite
-* [ ] Requisição com SKUs válidos retorna o JSON da intenção de NFe com matemática exata.
-* [ ] Requisição com um SKU inexistente retorna erro 404 detalhando qual SKU falhou.
-* [ ] Geração bem sucedida dispara o webhook `invoice.generated` corretamente.
-
-### 8. Definição de Pronto (DoD)
-* [ ] Código revisado por outro membro do Squad.
-* [ ] Testes unitários com >80% de cobertura (foco na lógica matemática de impostos).
-* [ ] Documentação da API atualizada (Swagger/OpenAPI).
-* [ ] Pipeline de CI/CD passando.
+- Cadastrar e gerenciar produtos com alíquotas fiscais
+- Controlar estoque em tempo real com rastreabilidade total
+- Calcular impostos automaticamente
+- Registrar e visualizar fluxo de caixa
+- Controlar acessos por perfil de usuário (RBAC)
+- Integrar com outros squads do ERP
+- Entregar indicadores gerenciais em dashboard local
 
 ---
 
-## Estados da Nota
+## 4. PÚBLICO-ALVO / PERSONAS
 
-### 1. Visão Geral e Proposta de Valor
-**Problema:** Sem controle financeiro centralizado, o empresário confia apenas no saldo bancário, ignorando provisões de impostos e não sabendo o lucro real.  
-**Proposta de Valor:** Um livro-razão automático que consolida as receitas geradas pelo módulo fiscal (MOD3) e as despesas da operação, entregando um DRE básico e saldo em tempo real.
+| Persona | Necessidade Principal |
+|---|---|
+| **Dono / Gestor** | Visualizar números, saldo, indicadores e relatórios |
+| **Estoquista** | Registrar entradas e saídas de produtos rapidamente |
+| **Contador** | Consultar notas, alíquotas e resumos fiscais |
+| **Vendedor** | Gerar intenção de nota e confirmar venda com segurança |
+| **Administrador** | Gerenciar usuários, perfis e permissões de acesso |
 
-### 2. Personas
-* **Gestor Financeiro:** Acompanha saldos, extratos e insere saídas operacionais manuais.
-* **Sistema (Integração):** Subscreve-se nas notas emitidas para popular a receita automaticamente.
+---
 
-### 3. Requisitos Funcionais (RF)
-* **RF01 Entrada automática:** Toda nota confirmada (via webhook `invoice.generated`) gera uma transação de CRÉDITO automaticamente.
-* **RF02 Registrar despesa:** Permitir cadastro de DÉBITO manual informando descrição, valor (> 0) e data.
-* **RF03 Consultar saldo atual:** Calcular e exibir o saldo consolidado do Tenant (Entradas − Saídas).
-* **RF04 Extrato por período:** Listar as transações filtradas através de datas (Data Início e Data Fim).
-* **RF05 Resumo consolidado:** Ao puxar o extrato, devolver no cabeçalho a somatória: Total de Entradas e Total de Saídas do período solicitado.
+## 5. ESCOPO DO PRODUTO
 
-### 4. Requisitos Não-Funcionais (RNF)
-* **RNF01 Imutabilidade Financeira:** Transações inseridas no fluxo não podem ser excluídas (*Hard Delete* proibido). Para corrigir, é obrigatório lançar um estorno inverso.
-* **RNF02 Consistência:** A leitura do saldo atualizado deve ser instantânea, processando o fluxo de caixa de maneira performática.
+**Inclui:**
+- Aplicação desktop Python/PyQt6
+- Banco de dados SQLite local
+- Motor fiscal PHP via subprocess
+- Autenticação local com hash de senha
+- RBAC por perfil de usuário
+- Dashboard com indicadores locais
+- Relatórios exportáveis (CSV/TXT)
+- Alertas de estoque mínimo
+- Integração com outros squads via chamadas de módulo
 
-### 5. Especificação Técnica e Integração
-**Endpoints de API:**
-* `POST /v1/fisc/cashflow/expense` (201 Created)
-* `GET /v1/fisc/cashflow/balance` (200 OK)
-* `GET /v1/fisc/cashflow/statement?start={data}&end={data}` (200 OK)
+**Não inclui neste momento:**
+- Aplicativo mobile
+- Plataforma web ou API REST pública
+- Integração bancária real
+- Suporte multi-empresa
+- Emissão fiscal oficial junto à SEFAZ em produção
+- Containerização Docker
+- Deploy em servidor remoto
 
-**Consumo de Webhooks:**
-* Ouve o `invoice.generated` emitido pelo MOD3 para gerar transação com tipo `CREDITO`.
+---
 
-**Estrutura de dados (JSON):**
-```json
-{
-  "transaction_id": "tx_9988",
-  "tipo": "CREDITO",
-  "valor": 5.00,
-  "descricao": "Venda ref. invoice inv_12345",
-  "data_ocorrencia": "2026-03-09T10:00:00Z"
-}
+## 6. STACK TECNOLÓGICA
+
+### Protótipo Atual
+
+| Componente | Tecnologia |
+|---|---|
+| Linguagem principal | Python 3.12 |
+| Interface gráfica | PyQt6 >= 6.6.0 |
+| Banco de dados | SQLite (`app.db`) |
+| Motor fiscal | PHP via subprocess (`backend_calculos.php`) |
+| Acesso ao banco | `database.py` customizado |
+| Instalação | `requirements.txt` + `instalar_dependencias.bat` |
+| Execução | `run_app.bat` (Windows) |
+| Empacotamento | PyInstaller via `gerar_executavel.bat` |
+| UI Design | Qt Designer (`tela_principal.ui`) |
+| Versionamento | Git + GitHub |
+| Gestão de tarefas | Plane / OpenProject |
+
+### Versão Evoluída
+
+| Componente | Tecnologia |
+|---|---|
+| Integração entre módulos | Chamadas diretas Python |
+| Banco de dados | SQLite com schema versionado |
+| Testes | pytest |
+| Documentação | README.md + docstrings |
+
+---
+
+## 7. ARQUITETURA TÉCNICA
+
+```
+Camada de Interface (PyQt6)
+   ↓
+Camada de Lógica de Negócio (Python)
+   ├── Módulo Produtos
+   ├── Módulo Estoque
+   ├── Módulo Fiscal ←→ backend_calculos.php (subprocess)
+   ├── Módulo Caixa
+   ├── Módulo Auth
+   └── Módulo RBAC
+   ↓
+Camada de Dados (SQLite via database.py)
+   ↓
+app.db (arquivo local)
+
+Integrações:
+↔ Squad 1 (Auth)
+↔ Squad 3 (CRM)
+↔ Squad 4 (Service Desk)
 ```
 
-### 6. User Stories
-* "Como Gestor Financeiro, eu quero que as notas fiscais emitidas gerem receitas automaticamente no caixa para não ter que fazer duplo lançamento."
-* "Como Gestor Financeiro, eu quero tirar um extrato por intervalo de datas para avaliar a saúde da empresa."
+---
 
-### 7. Critérios de Aceite
-* [ ] Evento de nota emitida gera entrada de CRÉDITO com os valores corretos.
-* [ ] API permite registrar despesa manual de DÉBITO.
-* [ ] Consulta de extrato com filtro de data retorna apenas os lançamentos do período estipulado.
-* [ ] Endpoint de saldo soma todas as entradas e subtrai as saídas com sucesso.
+## 8. FLUXO PRINCIPAL DO SISTEMA
 
-### 8. Definição de Pronto (DoD)
-* [ ] Código revisado por outro membro do Squad.
-* [ ] Integração E2E (MOD3 dispara, MOD4 escuta) validada.
-* [ ] Testes unitários com >80% de cobertura.
-* [ ] Documentação da API atualizada (Swagger/OpenAPI).
-* [ ] Pipeline de CI/CD passando.
 ```
+Login do Usuário
+  ↓
+Cadastrar Produto
+  ↓
+Registrar Entrada de Estoque
+  ↓
+Gerar Intenção de Nota / Calcular Impostos
+  ↓
+Confirmar Nota → Baixar Estoque + Registrar Receita no Caixa
+  ↓
+Consultar Saldo / Extrato
+  ↓
+Visualizar Dashboard
+```
+
+---
+
+## 9. MODELO DE DADOS
+
+```sql
+-- Usuários e autenticação
+CREATE TABLE usuarios (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome           TEXT NOT NULL,
+    usuario        TEXT UNIQUE NOT NULL,
+    senha_hash     TEXT NOT NULL,
+    role           TEXT NOT NULL DEFAULT 'vendedor',
+    ativo          INTEGER DEFAULT 1,
+    primeiro_login INTEGER DEFAULT 1,
+    criado_em      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Catálogo de produtos
+CREATE TABLE produtos (
+    sku              TEXT PRIMARY KEY,
+    nome             TEXT NOT NULL,
+    preco_base       DECIMAL(10,2) NOT NULL,
+    aliquota_imposto DECIMAL(5,4) NOT NULL,
+    estoque_minimo   INTEGER DEFAULT 0,
+    criado_em        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Movimentações de estoque
+CREATE TABLE estoque_mov (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    sku        TEXT NOT NULL REFERENCES produtos(sku),
+    tipo       TEXT NOT NULL CHECK(tipo IN ('entrada','saida','estorno')),
+    quantidade INTEGER NOT NULL,
+    motivo     TEXT,
+    nota_id    INTEGER REFERENCES notas(id),
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notas fiscais
+CREATE TABLE notas (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    status        TEXT NOT NULL CHECK(status IN ('rascunho','confirmada')),
+    total_bruto   DECIMAL(10,2) NOT NULL,
+    total_imposto DECIMAL(10,2) NOT NULL,
+    total_final   DECIMAL(10,2) NOT NULL,
+    usuario_id    INTEGER REFERENCES usuarios(id),
+    criado_em     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    confirmado_em DATETIME
+);
+
+-- Itens da nota
+CREATE TABLE itens_nota (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    nota_id          INTEGER NOT NULL REFERENCES notas(id),
+    sku              TEXT NOT NULL REFERENCES produtos(sku),
+    quantidade       INTEGER NOT NULL,
+    preco_base       DECIMAL(10,2) NOT NULL,
+    aliquota_imposto DECIMAL(5,4) NOT NULL,
+    imposto_item     DECIMAL(10,2) NOT NULL,
+    total_item       DECIMAL(10,2) NOT NULL
+);
+
+-- Transações financeiras
+CREATE TABLE transacoes_caixa (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo          TEXT NOT NULL CHECK(tipo IN ('entrada','despesa','estorno')),
+    descricao     TEXT NOT NULL,
+    valor_bruto   DECIMAL(10,2) NOT NULL,
+    valor_imposto DECIMAL(10,2) DEFAULT 0,
+    valor_liquido DECIMAL(10,2) NOT NULL,
+    nota_id       INTEGER REFERENCES notas(id),
+    usuario_id    INTEGER REFERENCES usuarios(id),
+    criado_em     DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Alertas
+CREATE TABLE alertas (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo      TEXT NOT NULL,
+    mensagem  TEXT NOT NULL,
+    lido      INTEGER DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Logs de auditoria
+CREATE TABLE logs (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER REFERENCES usuarios(id),
+    acao       TEXT NOT NULL,
+    tabela     TEXT,
+    registro_id TEXT,
+    detalhes   TEXT,
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+## 10. SPRINT 1 — PRD e MVP do Banco de Dados
+
+**Objetivo:** Definir o produto, modelar o banco de dados inicial e entregar um protótipo desktop funcional como prova de conceito.
+
+**Status:** ✅ Concluída
+
+### Entregas
+
+| ID | Task | Status |
+|---|---|---|
+| FISCFISCAL-2 | Criação do PRD (FISC) | ✅ Done |
+| FISCFISCAL-3 | MVP de Banco de Dados — Modelagem (ERD) | ✅ Done |
+
+### Backlog de Requisitos Funcionais (base para sprints seguintes)
+
+Levantados nesta sprint e implementados nas próximas:
+
+**FISC-MOD1 — Cadastro de Produtos**
+| ID | Requisito |
+|---|---|
+| FISCFISCAL-4 | RF01 — Criar Produto |
+| FISCFISCAL-8 | RF02 — Listar produtos |
+| FISCFISCAL-9 | RF03 — Buscar produto |
+| FISCFISCAL-10 | RF04 — Editar produto |
+| FISCFISCAL-11 | RF05 — Remover produto |
+| FISCFISCAL-5 | RF06 — Validar SKU único |
+
+**FISC-MOD2 — Controle de Estoque**
+| ID | Requisito |
+|---|---|
+| FISCFISCAL-6 | RF01 — Registrar entrada |
+| FISCFISCAL-12 | RF02 — Registrar saída |
+| FISCFISCAL-7 | RF03 — Bloquear saída negativa |
+| FISCFISCAL-13 | RF04 — Consultar saldo |
+| FISCFISCAL-14 | RF05 — Histórico de movimentações |
+| FISCFISCAL-15 | RF06 — Registrar motivo |
+
+**FISC-MOD3 — Calculadora Fiscal**
+| ID | Requisito |
+|---|---|
+| FISCFISCAL-16 | RF01 — Gerar intenção de nota |
+| FISCFISCAL-17 | RF02 — Calcular imposto por item |
+| FISCFISCAL-18 | RF03 — Calcular totais |
+| FISCFISCAL-19 | RF04 — Validar SKUs |
+| FISCFISCAL-20 | RF05 — Acionar baixa de estoque |
+
+**FISC-MOD4 — Fluxo de Caixa**
+| ID | Requisito |
+|---|---|
+| FISCFISCAL-21 | RF01 — Entrada automática |
+| FISCFISCAL-22 | RF02 — Registrar despesa |
+| FISCFISCAL-23 | RF03 — Consultar saldo |
+| FISCFISCAL-24 | RF04 — Extrato por período |
+| FISCFISCAL-25 | RF05 — Resumo financeiro |
+
+---
+
+## 11. SPRINT 2 — Sistema Base e Módulos Core
+
+**Objetivo:** Implementar o backend completo com todos os módulos funcionais: autenticação, produtos, estoque, fiscal e caixa.
+
+**Status:** ✅ Concluída
+
+### MOD-S2-01 — Setup do Sistema
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-26 | FISC-MOD1 — Setup inicial do backend |
+| FISCFISCAL-27 | FISC-MOD1 — Configurar estrutura de pastas |
+| FISCFISCAL-28 | FISC-MOD1 — Configurar rotas base da API |
+
+### MOD-S2-02 — Auth
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-29 | FISC-MOD2 — Criar endpoint de login |
+| FISCFISCAL-30 | FISC-MOD2 — Implementar geração de JWT |
+| FISCFISCAL-31 | FISC-MOD2 — Middleware de autenticação |
+| FISCFISCAL-32 | FISC-MOD2 — Proteção de rotas privadas |
+
+### MOD-S2-03 — Produtos
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-33 | FISC-MOD3 — Criar endpoint POST /products |
+| FISCFISCAL-34 | FISC-MOD3 — Criar endpoint GET /products |
+| FISCFISCAL-35 | FISC-MOD3 — Criar endpoint GET /products/{id} |
+| FISCFISCAL-36 | FISC-MOD3 — Criar endpoint DELETE /products/{id} |
+| FISCFISCAL-37 | FISC-MOD3 — Validação de SKU único |
+
+### MOD-S2-04 — Estoque
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-38 | FISC-MOD4 — Endpoint entrada de estoque |
+| FISCFISCAL-39 | FISC-MOD4 — Endpoint saída de estoque |
+| FISCFISCAL-40 | FISC-MOD4 — Bloquear saída com saldo insuficiente |
+| FISCFISCAL-41 | FISC-MOD4 — Endpoint consulta de saldo |
+| FISCFISCAL-42 | FISC-MOD4 — Histórico de movimentações |
+| FISCFISCAL-43 | FISC-MOD4 — Registro de motivo da movimentação |
+
+### MOD-S2-05 — Fiscal
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-44 | FISC-MOD5 — Criar intenção de nota fiscal |
+| FISCFISCAL-45 | FISC-MOD5 — Calcular imposto por item |
+| FISCFISCAL-46 | FISC-MOD5 — Calcular totais da nota |
+| FISCFISCAL-47 | FISC-MOD5 — Validar SKUs na nota |
+| FISCFISCAL-48 | FISC-MOD5 — Baixa automática de estoque |
+
+### MOD-S2-06 — Caixa
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-49 | FISC-MOD6 — Entrada automática no caixa |
+| FISCFISCAL-50 | FISC-MOD6 — Registrar despesa manual |
+| FISCFISCAL-51 | FISC-MOD6 — Consulta de saldo do caixa |
+| FISCFISCAL-52 | FISC-MOD6 — Extrato por período |
+| FISCFISCAL-53 | FISC-MOD6 — Resumo financeiro |
+
+### MOD-S2-07 — Docs
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-54 | FISC-MOD7 — Documentar endpoints da API |
+| FISCFISCAL-55 | FISC-MOD7 — Criar README do projeto |
+| FISCFISCAL-56 | FISC-MOD7 — Organizar documentação técnica |
+
+### MOD-S2-08 — Testes
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-57 | FISC-MOD8 — Testes unitários de produtos |
+| FISCFISCAL-58 | FISC-MOD8 — Testes unitários de estoque |
+| FISCFISCAL-59 | FISC-MOD8 — Testes unitários de fiscal |
+| FISCFISCAL-60 | FISC-MOD8 — Testes unitários de caixa |
+
+---
+
+## 12. SPRINT 3 — Telas, Dashboard, Regras e UX
+
+**Objetivo:** Construir todas as telas da interface desktop em PyQt6, implementar o dashboard, regras avançadas de negócio e as primeiras melhorias de UX.
+
+**Status:** 🟡 Em andamento
+
+### MOD-S3-01 — UX / Interface Desktop
+
+| ID | Task | Status |
+|---|---|---|
+| FISCFISCAL-61 | FISC-MOD1-01 — Padronizar paleta de cores e fontes em todas as telas | 🟡 In Progress |
+| FISCFISCAL-62 | FISC-MOD1-02 — Implementar mensagens de feedback visual (sucesso, erro, alerta) | 🟡 In Progress |
+| FISCFISCAL-63 | FISC-MOD1-03 — Adicionar confirmação antes de ações destrutivas (remover produto, cancelar nota) | 🟡 In Progress |
+| FISCFISCAL-64 | FISC-MOD1-04 — Validação em tempo real nos campos de formulário (SKU, valores, datas) | 🟡 In Progress |
+
+### MOD-S3-02 — Telas (Produtos / Estoque / Fiscal)
+
+| ID | Task | Status |
+|---|---|---|
+| FISCFISCAL-65 | FISC-MOD2-01 — Tela de listagem de produtos | 🟡 In Progress |
+| FISCFISCAL-66 | FISC-MOD2-02 — Tela de criação de produto | 🟡 In Progress |
+| FISCFISCAL-67 | FISC-MOD2-03 — Tela de edição de produto | 🟡 In Progress |
+| FISCFISCAL-68 | FISC-MOD2-04 — Tela de entrada de estoque | 🟡 In Progress |
+| FISCFISCAL-69 | FISC-MOD2-05 — Tela de saída de estoque | 🟡 In Progress |
+| FISCFISCAL-70 | FISC-MOD2-06 — Tela de histórico | 🟡 In Progress |
+| FISCFISCAL-71 | FISC-MOD2-07 — Tela de geração de nota | 🟡 In Progress |
+| FISCFISCAL-72 | FISC-MOD2-08 — Tela de visualização de nota | 🟡 In Progress |
+
+### MOD-S3-03 — API Pública
+
+| ID | Task | Status |
+|---|---|---|
+| FISCFISCAL-73 | FISC-MOD3-01 — Criar endpoints públicos | 🟡 In Progress |
+| FISCFISCAL-74 | FISC-MOD3-02 — Documentar API pública | 🟡 In Progress |
+| FISCFISCAL-75 | FISC-MOD3-03 — Padronizar respostas JSON | 🟡 In Progress |
+| FISCFISCAL-76 | FISC-MOD3-04 — Controle de acesso básico | 🟡 In Progress |
+
+### MOD-S3-04 — Dashboard
+
+| ID | Task | Status |
+|---|---|---|
+| FISCFISCAL-77 | FISC-MOD4-01 — Dashboard geral | 🟡 In Progress |
+| FISCFISCAL-78 | FISC-MOD4-02 — Indicadores financeiros | 🟡 In Progress |
+| FISCFISCAL-79 | FISC-MOD4-03 — Indicadores de estoque | 🟡 In Progress |
+| FISCFISCAL-80 | FISC-MOD4-04 — Gráficos básicos | 🟡 In Progress |
+
+### MOD-S3-05 — Regras Avançadas
+
+| ID | Task | Status |
+|---|---|---|
+| FISCFISCAL-81 | FISC-MOD5-01 — Validações avançadas de negócio | 🟡 In Progress |
+| FISCFISCAL-82 | FISC-MOD5-02 — Tratamento de erros | 🟡 In Progress |
+| FISCFISCAL-83 | FISC-MOD5-03 — Consistência de dados | 🟡 In Progress |
+| FISCFISCAL-84 | FISC-MOD5-04 — Logs básicos | 🟡 In Progress |
+
+### MOD-S3-06 — Integração Auth
+
+| ID | Task | Status |
+|---|---|---|
+| FISCFISCAL-85 | FISC-MOD6-01 — Integração frontend com login | ✅ Done |
+| FISCFISCAL-86 | FISC-MOD6-02 — Persistência de sessão | ✅ Done |
+| FISCFISCAL-87 | FISC-MOD6-03 — Proteção de rotas frontend | ✅ Done |
+| FISCFISCAL-88 | FISC-MOD6-04 — Logout | ✅ Done |
+
+---
+
+## 13. SPRINT 4 — Integração Total e Infraestrutura
+
+**Objetivo:** Integrar o sistema com os outros squads do ERP, implementar RBAC completo, infraestrutura de ambiente e documentação técnica.
+
+**Status:** 🔵 Backlog
+
+### MOD-S4-01 — Integrações
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-89 | ISC-MOD4-01 — Teste de integração com Auth (Squad 1) |
+| FISCFISCAL-90 | FISC-MOD4-02 — Integração com CRM (consulta de estoque) |
+| FISCFISCAL-91 | FISC-MOD4-03 — Integração com Service Desk (histórico) |
+| FISCFISCAL-92 | FISC-MOD4-04 — Teste end-to-end do ERP completo |
+
+### MOD-S4-02 — Controle de Acesso (RBAC)
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-93 | FISC-MOD4-01 — Implementar RBAC em produtos |
+| FISCFISCAL-94 | FISC-MOD4-02 — Implementar RBAC em estoque |
+| FISCFISCAL-95 | FISC-MOD4-03 — Implementar RBAC em fiscal |
+| FISCFISCAL-96 | FISC-MOD4-04 — Implementar RBAC em caixa |
+| FISCFISCAL-97 | FISC-MOD4-05 — Tela de gestão de usuários |
+
+### MOD-S4-03 — Testes
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-98 | FISC-MOD4-01 — Testes integração módulos core |
+| FISCFISCAL-99 | FISC-MOD4-02 — Testes de segurança (auth e permissões) |
+| FISCFISCAL-100 | FISC-MOD4-03 — Testes de regressão pós-integração |
+
+### MOD-S4-04 — Deploy / Ambiente
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-101 | FISC-MOD4-01 — Configurar variáveis de ambiente (.env) |
+| FISCFISCAL-102 | FISC-MOD4-02 — Criar Dockerfile |
+| FISCFISCAL-103 | FISC-MOD4-03 — Configurar docker-compose |
+| FISCFISCAL-104 | FISC-MOD4-04 — Preparar ambiente de execução |
+
+### MOD-S4-05 — Documentação
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-105 | FISC-MOD4-01 — Atualizar README do projeto |
+| FISCFISCAL-106 | FISC-MOD4-02 — Documentar arquitetura |
+| FISCFISCAL-107 | FISC-MOD4-03 — Preparar pitch do Demoday |
+
+### MOD-S4-06 — UX e Melhorias
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-108 | FISC-MOD4-01 — Implementar loading states |
+| FISCFISCAL-109 | FISC-MOD4-02 — Feedback visual (toasts/erros) |
+| FISCFISCAL-110 | FISC-MOD4-03 — Ajustar responsividade (tablet) |
+
+---
+
+## 14. SPRINT 5 — ENTREGA FINAL
+
+**Objetivo:** Bug fix, qualidade, segurança, documentação final e apresentação no Demoday.
+
+**Status:** 🔵 Backlog
+
+### MOD-S5-01 — Bug Fix
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-111 | FISC-MOD5-01 — Levantamento e triagem de bugs |
+| FISCFISCAL-112 | FISC-MOD5-02 — Correção de bugs críticos (P0) |
+| FISCFISCAL-113 | FISC-MOD5-03 — Correção de bugs P1 |
+| FISCFISCAL-114 | FISC-MOD5-04 — Ajustes finais de UX |
+
+### MOD-S5-02 — Deploy
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-115 | FISC-MOD5-01 — Configurar servidor de produção |
+| FISCFISCAL-116 | FISC-MOD5-02 — Deploy com Docker (docker-compose) |
+| FISCFISCAL-117 | FISC-MOD5-03 — Verificar serviços (API, DB, frontend) |
+| FISCFISCAL-118 | FISC-MOD5-04 — Configurar variáveis de ambiente |
+
+### MOD-S5-03 — Segurança
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-119 | FISC-MOD5-01 — Configurar SSL (HTTPS) |
+| FISCFISCAL-120 | FISC-MOD5-02 — Configurar variáveis seguras (JWT, DB) |
+| FISCFISCAL-121 | FISC-MOD5-03 — Garantir proteção do .env |
+| FISCFISCAL-122 | FISC-MOD5-04 — Testar ambiente de produção |
+
+### MOD-S5-04 — Testes Finais
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-123 | FISC-MOD5-01 — Teste de login |
+| FISCFISCAL-124 | FISC-MOD5-02 — Teste de criação de produto |
+| FISCFISCAL-125 | FISC-MOD5-03 — Teste de entrada de estoque |
+| FISCFISCAL-126 | FISC-MOD5-04 — Teste de geração de nota fiscal |
+| FISCFISCAL-127 | FISC-MOD5-05 — Teste de confirmação de nota |
+| FISCFISCAL-128 | FISC-MOD5-06 — Teste de atualização do caixa |
+
+### MOD-S5-05 — Documentação Final
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-129 | FISC-MOD5-01 — Criar diagrama de arquitetura |
+| FISCFISCAL-130 | FISC-MOD5-02 — Documentar decisões técnicas (ADR) |
+| FISCFISCAL-131 | FISC-MOD5-03 — Atualizar Swagger/OpenAPI |
+| FISCFISCAL-132 | FISC-MOD5-04 — Revisar documentação geral |
+
+### MOD-S5-06 — Demoday
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-133 | FISC-MOD5-01 — Criar slides da apresentação |
+| FISCFISCAL-134 | FISC-MOD5-02 — Definir roteiro da demo |
+| FISCFISCAL-135 | FISC-MOD5-03 — Ensaiar apresentação |
+| FISCFISCAL-136 | FISC-MOD5-04 — Preparar fallback (vídeo/demo gravada) |
+
+### MOD-S5-07 — Opcional (SEFAZ)
+
+| ID | Task |
+|---|---|
+| FISCFISCAL-137 | FISC-MOD5-01 — Estudar layout NFe |
+| FISCFISCAL-138 | FISC-MOD5-02 — Gerar XML de nota fiscal |
+| FISCFISCAL-139 | FISC-MOD5-03 — Validar XML com schema |
+| FISCFISCAL-140 | FISC-MOD5-04 — Testar ambiente de homologação |
+
+---
+
+## 15. REQUISITOS NÃO-FUNCIONAIS
+
+- Aplicação executa em Windows sem instalação adicional pelo usuário final (executável PyInstaller).
+- Banco de dados SQLite local; não requer servidor de banco.
+- Credenciais armazenadas com hash bcrypt; nunca em texto puro.
+- Logs de auditoria registrados para todas as ações críticas.
+- Interface responsiva a redimensionamento de janela (layouts PyQt6).
+- Tempo de resposta de qualquer operação local inferior a 2 segundos.
+- Código versionado em Git com branches por feature e PR obrigatório.
+
+---
+
+## 16. SEGURANÇA
+
+- Senhas com hash bcrypt (nunca texto puro).
+- Sessão mantida apenas em memória; não persiste em disco.
+- RBAC aplicado em todas as funções críticas na camada Python.
+- Logs de auditoria imutáveis para rastreabilidade.
+- Transações SQLite com ROLLBACK em operações críticas.
+- Subprocess PHP não aceita input não-sanitizado.
+- Arquivo `.env` protegido e fora do repositório Git.
+
+---
+
+## 17. MÉTRICAS DE SUCESSO
+
+- Fluxo completo funcional: cadastrar produto → estoque → nota → caixa → dashboard.
+- Executável entregável rodando em Windows sem dependências extras.
+- Integrações com outros squads ativas e testadas.
+- Dashboard exibindo indicadores corretos.
+- Testes automatizados cobrindo funções críticas de cada módulo.
+- Demo ensaiada e estável para apresentação no Demoday.
+
+---
+
+## 18. RISCOS E MITIGAÇÕES
+
+| Risco | Probabilidade | Impacto | Mitigação |
+|---|---|---|---|
+| Atraso entre squads para integração | Alta | Alto | Contratos de integração definidos no Sprint 4 |
+| Conflitos Git entre membros | Média | Médio | Branches por feature + PR obrigatório |
+| Bugs no subprocess PHP | Média | Alto | Tratamento de erros + fallback de cálculo |
+| Escopo excessivo na sprint | Alta | Médio | Priorização contínua no OpenProject |
+| Executável PyInstaller com erro | Baixa | Alto | Testar empacotamento no Sprint 4 |
+| Perda de dados SQLite | Baixa | Alto | Backup do `app.db` antes de cada uso |
+
+---
+
+## 19. DEFINIÇÃO DE PRONTO (DoD Geral)
+
+- [ ] Produto cadastra, estoque é controlado, caixa atualiza e dashboard exibe dados corretos.
+- [ ] Login funciona com RBAC aplicado em todos os módulos.
+- [ ] Motor fiscal calcula corretamente e está integrado à interface.
+- [ ] Todos os módulos com testes unitários nas funções críticas.
+- [ ] Executável gerado e testado em máquina limpa.
+- [ ] Documentação: README final, ADR e schema atualizado.
+- [ ] Demo ensaiada com roteiro e fallback preparados.
+- [ ] Repositório organizado com histórico de commits limpo.
+
+---
+
+## 20. FUTURO DO PRODUTO
+
+- Emissão oficial de NF-e / NF-Se com integração SEFAZ.
+- Versão web para acesso multi-dispositivo.
+- Suporte multi-empresa.
+- Integração bancária real para conciliação automática.
+- BI avançado com gráficos históricos.
+- App mobile companion para consulta de estoque e saldo.
+
+---
+
+*PRD v4.0 — Squad FISC | Abril/2026*
