@@ -245,6 +245,19 @@ def consultar_saldo_estoque(sku):
     conn.close()
     return row[0] if row else 0
 
+def obter_indicadores_estoque():
+    """Retorna o total de itens no estoque e o valor de custo total."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT SUM(estoque) AS total_itens, SUM(estoque * preco_base) AS valor_total FROM produtos WHERE estoque > 0")
+    row = cursor.fetchone()
+    conn.close()
+    
+    return {
+        "total_itens": row["total_itens"] if row and row["total_itens"] else 0,
+        "valor_total": row["valor_total"] if row and row["valor_total"] else 0.0
+    }
+
 # --------------- FUNÇÕES FISCAIS (SUA PARTE) ---------------
 
 def salvar_nota_fiscal(sku, qtd, total):

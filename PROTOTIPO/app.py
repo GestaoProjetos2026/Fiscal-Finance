@@ -118,6 +118,14 @@ class JanelaPrincipal(QMainWindow):
             self.lbl_dash_saldo.setText(f"Saldo: R$ {caixa['saldo']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         except Exception as e:
             print(f"Erro ao carregar indicadores financeiros do dashboard: {e}")
+            
+        # 2. Indicadores de Estoque
+        try:
+            est = database.obter_indicadores_estoque()
+            self.lbl_dash_total_itens.setText(f"Total em Estoque: {est['total_itens']} un.")
+            self.lbl_dash_valor_est.setText(f"Valor Custo Total: R$ {est['valor_total']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        except Exception as e:
+            print(f"Erro ao carregar indicadores de estoque do dashboard: {e}")
 
     def closeEvent(self, event):
         """Encerra o processo da API Flask quando a janela fecha."""
