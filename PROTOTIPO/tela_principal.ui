@@ -21,6 +21,80 @@
        <number>0</number>
       </property>
 
+      <!-- ABA 0: DASHBOARD -->
+      <widget class="QWidget" name="tab_dashboard">
+       <attribute name="title">
+        <string>Dashboard</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_dash">
+        <item>
+         <widget class="QGroupBox" name="group_dash_fin">
+          <property name="title">
+           <string>Indicadores Financeiros</string>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_dash_fin">
+           <item>
+            <widget class="QLabel" name="lbl_dash_receitas">
+             <property name="text"><string>Receitas: R$ 0.00</string></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+             <property name="styleSheet"><string>font-size: 14px; color: #40a02b; font-weight: bold;</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_dash_despesas">
+             <property name="text"><string>Despesas: R$ 0.00</string></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+             <property name="styleSheet"><string>font-size: 14px; color: #d20f39; font-weight: bold;</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_dash_saldo">
+             <property name="text"><string>Saldo: R$ 0.00</string></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+             <property name="styleSheet"><string>font-size: 14px; color: #1e66f5; font-weight: bold;</string></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="group_dash_est">
+          <property name="title">
+           <string>Indicadores de Estoque</string>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_dash_est">
+           <item>
+            <widget class="QLabel" name="lbl_dash_total_itens">
+             <property name="text"><string>Total em Estoque: 0</string></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+             <property name="styleSheet"><string>font-size: 13px; font-weight: bold;</string></property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_dash_valor_est">
+             <property name="text"><string>Valor Custo Total: R$ 0.00</string></property>
+             <property name="alignment"><set>Qt::AlignCenter</set></property>
+             <property name="styleSheet"><string>font-size: 13px; font-weight: bold;</string></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="widget_dash_grafico" native="true">
+          <!-- Espaço reservado para o Gráfico -->
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_grafico"/>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+
       <!-- ABA 1: PRODUTOS -->
       <widget class="QWidget" name="tab_produtos">
        <attribute name="title">

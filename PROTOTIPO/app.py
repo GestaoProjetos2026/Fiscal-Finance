@@ -81,7 +81,7 @@ class JanelaPrincipal(QMainWindow):
             
         # Atualização em tempo real ao navegar pelas abas
         if hasattr(self, 'tabWidget'):
-            self.tabWidget.currentChanged.connect(lambda idx: self.acao_atualizar_caixa())
+            self.tabWidget.currentChanged.connect(self.ao_trocar_aba)
 
         # --- Aba 5: Nota Fiscal (MOD5) ---
         if hasattr(self, 'btn_nf_criar'):
@@ -98,6 +98,19 @@ class JanelaPrincipal(QMainWindow):
         # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
         self.acao_atualizar_lista_notas()
+        self.acao_atualizar_dashboard()
+
+    def ao_trocar_aba(self, idx):
+        self.acao_atualizar_caixa()
+        if idx == 0:  # Assumindo que o Dashboard é a aba 0
+            self.acao_atualizar_dashboard()
+
+    def acao_atualizar_dashboard(self):
+        """Atualiza os indicadores na tela de Dashboard."""
+        if not hasattr(self, 'lbl_dash_receitas'):
+            return
+        # Os indicadores serão preenchidos nos próximos passos
+        pass
 
     def closeEvent(self, event):
         """Encerra o processo da API Flask quando a janela fecha."""
