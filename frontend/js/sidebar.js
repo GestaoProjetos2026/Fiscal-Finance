@@ -46,7 +46,7 @@ function injectLayout(pageId, pageTitle) {
 
         <div class="nav-section-label">Ferramentas</div>
 
-        <a class="nav-item" data-page="api-tester" href="api-tester.html">
+        <a class="nav-item" data-page="api-tester" href="api-tester.html" id="nav-api-tester" style="display:none;">
           <span class="nav-icon">🧪</span> API Tester
         </a>
       </nav>
@@ -94,6 +94,13 @@ function injectLayout(pageId, pageTitle) {
 
   // Preenche dados do user
   fillUserSidebar();
+
+  // Mostra API Tester somente para admin
+  const _u = getUser();
+  if (_u && _u.papel === 'admin') {
+    const navTester = document.getElementById('nav-api-tester');
+    if (navTester) navTester.style.display = '';
+  }
 
   // Relógio no topbar
   function updateClock() {

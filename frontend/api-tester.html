@@ -96,7 +96,16 @@
 <script src="js/ui.js"></script>
 <script src="js/sidebar.js"></script>
 <script>
-if (!requireAuth()) throw new Error('not auth');
+  if (!requireAuth()) throw new Error('not auth');
+
+  // ─── Guard: apenas admin pode acessar esta página ────────
+  const _currentUser = getUser();
+  if (!_currentUser || _currentUser.papel !== 'admin') {
+    toast('Acesso restrito a administradores.', 'error');
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
+    throw new Error('access denied');
+  }
+
 injectLayout('api-tester', 'API Tester');
 
 // ─── Definição de todos os endpoints ──────────────────────────────

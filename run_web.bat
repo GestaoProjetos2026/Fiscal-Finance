@@ -15,7 +15,7 @@ echo.
 
 :: Instala dependencias se necessario
 echo  [1/3] Verificando dependencias Python...
-cd /d "%~dp0src"
+cd /d "%~dp0backend"
 pip install -r requirements.txt -q
 if %errorlevel% neq 0 (
     echo  [ERRO] Falha ao instalar dependencias.
