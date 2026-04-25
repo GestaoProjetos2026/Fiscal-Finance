@@ -1,5 +1,0 @@
-$kind: http-request
-name: GET List Products
-method: GET
-url: 'http://localhost:5000/v1/fisc/products'
-order: 2000

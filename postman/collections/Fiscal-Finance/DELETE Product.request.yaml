@@ -1,5 +1,0 @@
-$kind: http-request
-name: DELETE Product
-method: DELETE
-url: 'http://localhost:5000/v1/fisc/products/PROD-TEST-001'
-order: 5000

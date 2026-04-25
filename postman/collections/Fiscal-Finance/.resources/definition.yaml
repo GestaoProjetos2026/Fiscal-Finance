@@ -1,9 +1,0 @@
-$kind: collection
-name: Fiscal Finance - Products API
-description: |-
-  Collection da Products API para o Squad FISC.
-  Contém os endpoints de criação, listagem, consulta, atualização e remoção de produtos fiscais.
-  Base URL: http://localhost:5000/v1/fisc
-variables:
-  - key: base_url
-    value: 'http://localhost:5000'

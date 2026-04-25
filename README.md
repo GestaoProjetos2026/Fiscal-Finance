@@ -1,51 +1,50 @@
-# Fiscal Finance — Squad FISC
+# Fiscal Finance
 
-Fiscal Finance é um sistema integrado de gestão voltado para as áreas Fiscal, Financeira e de Estoque. O projeto permite centralizar o controle operacional em uma única plataforma web, evitando a necessidade de planilhas paralelas e melhorando a integridade das informações entre setores.
+Bem-vindo ao **Fiscal Finance**, um sistema web integrado para gerenciamento administrativo, desenvolvido para simplificar operações de lojas e pequenas empresas.
 
-## 🚀 Módulos Principais
+A aplicação fornece uma interface moderna e centralizada para gerenciar o ciclo de vida operacional, desde o cadastro do produto até a emissão da nota fiscal e o registro financeiro, tudo consumindo uma API REST robusta.
 
-1. **Cadastro de Produtos (FISC-MOD1)**: Repositório central com os SKUs, preços base e alíquotas de impostos, alimentando diretamente o estoque e a calculadora fiscal.
-2. **Controle de Inventário (FISC-MOD2)**: Livro-razão (*Ledger*) do estoque para registrar entradas e saídas e garantir rastreabilidade imutável de movimentações.
-3. **Fiscal e Notas (FISC-MOD3)**: Calculadora fiscal capaz de cruzar itens vendidos com suas alíquotas, computando o valor exato dos tributos (NFe/NFSe).
-4. **Fluxo de Caixa (FISC-MOD4)**: Gestão consolidada de entradas (originadas de notas emitidas) e saídas manuais, gerando um extrato financeiro simplificado (DRE básico).
+## 🚀 Funcionalidades
 
-## 🛠️ Tecnologias Utilizadas
+- **Dashboard:** Visão geral da operação com métricas consolidadas em tempo real.
+- **Produtos:** Catálogo completo com controle de SKU, precificação e alíquotas de imposto.
+- **Estoque:** Registro de entradas e saídas e acompanhamento de saldos dinâmico.
+- **Fiscal:** Calculadora que cruza a venda de produtos com a alíquota cadastrada, gerando simulações exatas para Nota Fiscal.
+- **Caixa:** Controle financeiro (extrato e saldo) integrado, registrando automaticamente as vendas e permitindo o lançamento manual de despesas.
+- **API Tester:** Ferramenta embutida exclusiva para administradores testarem todos os endpoints do backend.
 
-- **Backend:** Python + Flask (API RESTful), SQLite.
-- **Frontend:** Web nativa usando HTML5, CSS3 (com suporte a Dark Mode) e JavaScript Vanilla.
-- **Integração:** Arquitetura desacoplada onde o frontend consome diretamente as rotas de API do backend.
+## 🛠️ Stack Tecnológica
 
-## 📁 Estrutura de Diretórios
+- **Backend:** Python 3 + Flask. Servidor responsável pela lógica de negócios, cálculos fiscais e conexão com o banco.
+- **Banco de Dados:** SQLite (leve e embutido no projeto).
+- **Frontend:** Single Page Application (SPA) construída em HTML5, CSS3 nativo (com tema escuro profissional) e JavaScript puro (Vanilla JS), comunicando-se com a API via *fetch*.
 
-```
+## 📁 Estrutura do Projeto
+
+```text
 Fiscal-Finance/
-├── backend/             # Código fonte da API (Flask, rotas, lógica de banco)
-├── frontend/            # Interface gráfica web (HTML, CSS, JS)
-├── docs/                # Documentações do projeto (PRD, API Contract, Endpoints, etc)
-├── PROTOTIPO/           # Banco de dados e ferramentas antigas/protótipo (PyQt)
-├── postman/             # Collections de teste para a API
-└── run_web.bat          # Script prático para inicializar a aplicação no Windows
+├── backend/             # Lógica da API Flask (rotas, validações, banco de dados)
+├── frontend/            # Toda a interface do usuário (Páginas, Scripts e Estilos)
+├── docs/                # Documentação técnica e planejamento antigo do sistema
+├── PROTOTIPO/           # Arquivo do banco de dados (app.db) e código legado
+└── run_web.bat          # Inicializador automático do sistema
 ```
 
 ## ⚙️ Como Executar
 
-A inicialização do projeto está automatizada. Para executar:
+O projeto já está configurado para rodar de maneira muito simples no Windows:
 
-1. Certifique-se de que o **Python 3** está instalado na máquina.
-2. Na raiz do projeto, dê um duplo clique no arquivo `run_web.bat`.
+1. Dê um duplo-clique no arquivo `run_web.bat`.
+2. O script vai automaticamente:
+   - Instalar dependências necessárias (como o `flask` e `flask-cors`).
+   - Subir o servidor da API.
+   - Abrir o sistema no seu navegador (geralmente em `http://localhost:5000`).
 
-O script cuidará de:
-- Instalar quaisquer dependências não encontradas (através de `backend/requirements.txt`).
-- Iniciar o servidor de API Flask em segundo plano na porta 5000.
-- Abrir automaticamente a interface no seu navegador padrão (`http://localhost:5000/`).
+### Login Padrão
+Para testar, você pode usar os seguintes dados fictícios de acesso já cadastrados:
+- **E-mail:** `admin@fiscal.com`
+- **Senha:** `admin123`
 
-> **Nota para Desenvolvedores:** Caso prefira iniciar de forma manual, ative um ambiente virtual e rode `python app.py` dentro da pasta `backend/`. 
+## 📡 API e Integração
 
-## 🔐 Autenticação e Perfis
-
-O sistema possui autenticação JWT. No acesso web (via `index.html`), usuários podem ter as visões normais da operação ou visão de `admin` (que também desbloqueia o *API Tester* completo na lateral do painel).
-
-## 📄 Documentação Completa
-
-Para aprofundamento nas regras de negócios, contratos de API e demais informações do desenvolvimento:
-- Leia os documentos detalhados contidos na pasta [`docs/`](./docs). O PRD (Product Requirements Document) original, a listagem de Endpoints e contratos públicos estão todos hospedados lá.
+O backend foi projetado no padrão RESTful, o que significa que o frontend web atual e quaisquer outros sistemas futuros podem consumir as mesmas rotas. A documentação completa de rotas e o contrato de API estão disponíveis na pasta `docs/`.
