@@ -1,0 +1,41 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# === Ambientes virtuais ===
+venv/
+.venv/
+env/
+ENV/
+
+# === Banco de dados local (SQLite) — não commitar dados de dev ===
+*.db
+*.sqlite
+*.sqlite3
+
+# === PyInstaller ===
+build/
+dist/
+*.spec
+
+# === IDEs ===
+.vscode/
+.idea/
+*.suo
+*.user
+
+# === Sistema operacional ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Arquivos compilados/distribuição ===
+*.zip
+*.exe
+*.tar.gz
+
+# === Logs ===
+*.log

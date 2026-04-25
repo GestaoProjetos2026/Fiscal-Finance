@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caixa — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="flex-between mb-24">
+  <div>
+    <h2 style="font-size:18px;font-weight:700;">Fluxo de Caixa</h2>
+    <p class="text-muted text-sm mt-4">Saldo atual e extrato por período</p>
+  </div>
+  <div class="flex-center gap-8">
+    <button class="btn btn-primary" onclick="openModal('modal-despesa')">+ Registrar Despesa</button>
+    <button class="btn btn-secondary" onclick="carregarSaldo()">🔄</button>
+  </div>
+</div>
+
+<!-- ─── Saldo atual ──────────────────────────────────────────── -->
+<div class="stat-grid mb-24" style="grid-template-columns:repeat(3,1fr);">
+  <div class="stat-card">
+    <div class="stat-label">Receitas Totais</div>
+    <div class="stat-value green" id="caixa-receitas">—</div>
+    <div class="stat-sub">vendas realizadas</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Despesas Totais</div>
+    <div class="stat-value red" id="caixa-despesas">—</div>
+    <div class="stat-sub">compras + despesas manuais</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Saldo Líquido</div>
+    <div class="stat-value" id="caixa-saldo">—</div>
+    <div class="stat-sub" id="caixa-saldo-sub">resultado atual</div>
+  </div>
+</div>
+
+<!-- ─── Detalhamento ─────────────────────────────────────────── -->
+<div class="card mb-24">
+  <div class="card-header">
+    <span class="card-title">📋 Detalhamento</span>
+  </div>
+  <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+    <div>
+      <div class="text-sm text-muted">Receita de Vendas</div>
+      <div style="font-size:18px;font-weight:600;color:#16a34a;margin-top:4px;" id="det-vendas">—</div>
+    </div>
+    <div>
+      <div class="text-sm text-muted">Custo de Compras</div>
+      <div style="font-size:18px;font-weight:600;color:var(--danger);margin-top:4px;" id="det-compras">—</div>
+    </div>
+    <div>
+      <div class="text-sm text-muted">Despesas Manuais</div>
+      <div style="font-size:18px;font-weight:600;color:var(--danger);margin-top:4px;" id="det-manuais">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Extrato por período ──────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📅 Extrato por Período</span>
+    <div class="flex-center gap-8">
+      <input type="date" id="extrato-from" class="form-control" style="font-size:13px;padding:6px 10px;" />
+      <span class="text-muted">até</span>
+      <input type="date" id="extrato-to" class="form-control" style="font-size:13px;padding:6px 10px;" />
+      <button class="btn btn-primary btn-sm" onclick="carregarExtrato()">Buscar</button>
+    </div>
+  </div>
+
+  <div id="extrato-resumo" class="hidden" style="padding:14px 22px;background:var(--bg-card-alt);border-bottom:1px solid var(--border);">
+    <div class="flex-center gap-16">
+      <span class="text-sm">Entradas no período: <strong id="ext-entradas" style="color:#16a34a;">—</strong></span>
+      <span class="text-sm">Despesas no período: <strong id="ext-despesas-per" style="color:var(--danger);">—</strong></span>
+      <span class="text-sm">Saldo do período: <strong id="ext-saldo-per">—</strong></span>
+    </div>
+  </div>
+
+  <div class="table-wrapper" style="border:none;border-radius:0 0 var(--radius) var(--radius);">
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Tipo</th>
+          <th>Origem</th>
+          <th>Descrição</th>
+          <th style="text-align:right;">Valor</th>
+        </tr>
+      </thead>
+      <tbody id="tb-extrato">
+        <tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-secondary);">
+          Selecione um período para ver o extrato.
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─── Modal: Registrar despesa ────────────────────────────── -->
+<div class="modal-overlay" id="modal-despesa">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Registrar Despesa Manual</span>
+      <span class="modal-close" onclick="closeModal('modal-despesa')">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="desp-desc">Descrição <span style="color:var(--danger);">*</span></label>
+        <input id="desp-desc" type="text" class="form-control" placeholder="Ex: Aluguel, Energia, Fornecedor..." />
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" for="desp-valor">Valor (R$) <span style="color:var(--danger);">*</span></label>
+          <input id="desp-valor" type="number" step="0.01" min="0.01" class="form-control" placeholder="0,00" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" for="desp-data">Data (opcional)</label>
+          <input id="desp-data" type="date" class="form-control" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-despesa')">Cancelar</button>
+      <button class="btn btn-danger" id="btn-salvar-desp" onclick="salvarDespesa()">Registrar Despesa</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  injectLayout('caixa', 'Fluxo de Caixa');
+
+  // Define datas padrão do extrato (mês atual)
+  const hoje = new Date();
+  const anoMes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  document.getElementById('extrato-from').value = `${anoMes}-01`;
+  document.getElementById('extrato-to').value = hoje.toISOString().split('T')[0];
+
+  async function carregarSaldo() {
+    const res = await API.Caixa.saldo();
+    if (!res.ok) { toast('Erro ao carregar saldo.', 'error'); return; }
+
+    const d = res.body.data;
+
+    document.getElementById('caixa-receitas').textContent = formatBRL(d.total_entradas);
+    document.getElementById('caixa-despesas').textContent = formatBRL(d.total_despesas);
+
+    const saldoEl = document.getElementById('caixa-saldo');
+    saldoEl.textContent = formatBRL(d.saldo_liquido);
+    saldoEl.className = 'stat-value ' + (d.saldo_liquido >= 0 ? 'green' : 'red');
+
+    document.getElementById('det-vendas').textContent  = formatBRL(d.detalhamento.receita_vendas);
+    document.getElementById('det-compras').textContent = formatBRL(d.detalhamento.custo_compras);
+    document.getElementById('det-manuais').textContent = formatBRL(d.detalhamento.despesas_manuais);
+  }
+
+  async function carregarExtrato() {
+    const from = document.getElementById('extrato-from').value;
+    const to   = document.getElementById('extrato-to').value;
+
+    if (!from || !to) { toast('Selecione o período.', 'warning'); return; }
+
+    const res = await API.Caixa.extrato(from, to);
+    if (!res.ok) { toast(res.body.message, 'error'); return; }
+
+    const d = res.body.data;
+
+    // Resumo do período
+    document.getElementById('ext-entradas').textContent    = formatBRL(d.subtotal_entradas);
+    document.getElementById('ext-despesas-per').textContent = formatBRL(d.subtotal_despesas);
+    const saldoPer = document.getElementById('ext-saldo-per');
+    saldoPer.textContent = formatBRL(d.saldo_periodo);
+    saldoPer.style.color = d.saldo_periodo >= 0 ? '#16a34a' : 'var(--danger)';
+    document.getElementById('extrato-resumo').classList.remove('hidden');
+
+    const tb = document.getElementById('tb-extrato');
+
+    if (d.transacoes.length === 0) {
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-secondary);">Nenhuma transação neste período.</td></tr>';
+      return;
+    }
+
+    const origemLabel = {
+      'venda_estoque':  'Venda',
+      'compra_estoque': 'Compra',
+      'despesa_manual': 'Manual'
+    };
+
+    tb.innerHTML = d.transacoes.map(t => {
+      const entrada = t.tipo === 'entrada';
+      return `
+        <tr>
+          <td class="text-muted">${formatDate(t.data_registro)}</td>
+          <td>
+            <span class="badge ${entrada ? 'badge-green' : 'badge-red'}">
+              ${entrada ? '▲ Entrada' : '▼ Saída'}
+            </span>
+          </td>
+          <td><span class="badge badge-gray">${origemLabel[t.origem] || t.origem}</span></td>
+          <td>${t.descricao}</td>
+          <td style="text-align:right;font-weight:600;color:${entrada ? '#16a34a' : 'var(--danger)'};">
+            ${entrada ? '+' : '-'} ${formatBRL(t.valor_liquido)}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function salvarDespesa() {
+    const btn  = document.getElementById('btn-salvar-desp');
+    const desc = document.getElementById('desp-desc').value.trim();
+    const val  = parseFloat(document.getElementById('desp-valor').value);
+    const data = document.getElementById('desp-data').value;
+
+    if (!desc) { toast('Informe a descrição.', 'warning'); return; }
+    if (!val || val <= 0) { toast('Informe um valor válido.', 'warning'); return; }
+
+    setLoading(btn, true);
+    const res = await API.Caixa.registrarDespesa(desc, val, data || null);
+    setLoading(btn, false);
+
+    if (res.ok) {
+      toast('Despesa registrada com sucesso!', 'success');
+      closeModal('modal-despesa');
+      document.getElementById('desp-desc').value = '';
+      document.getElementById('desp-valor').value = '';
+      document.getElementById('desp-data').value = '';
+      carregarSaldo();
+      carregarExtrato();
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+
+  carregarSaldo();
+  carregarExtrato();
+</script>
+
+</body>
+</html>

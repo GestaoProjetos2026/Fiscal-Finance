@@ -4,7 +4,8 @@
 
 import json
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
 from flasgger import Swagger
 
 from products   import products_bp
@@ -14,6 +15,9 @@ from auth       import auth_bp, init_db_auth
 from public_api import public_bp
 
 app = Flask(__name__)
+
+# ── CORS — permite que o frontend web (qualquer origem local) acesse a API ──
+CORS(app)
 
 # ── Swagger UI — acessível em GET /docs ───────────────────────
 _SPEC_PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "openapi.json")
@@ -45,6 +49,26 @@ app.register_blueprint(products_bp, url_prefix="/v1/fisc")
 app.register_blueprint(cashflow_bp, url_prefix="/v1/fisc")
 app.register_blueprint(invoice_bp,  url_prefix="/v1/fisc")
 app.register_blueprint(public_bp,   url_prefix="/v1")      # prefixo /v1 (public já inclui /public/fisc)
+
+
+# ── Serve o frontend web estático em / ───────────────────────
+_FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+@app.route("/")
+@app.route("/web")
+@app.route("/web/")
+def frontend_index():
+    return send_from_directory(_FRONTEND_DIR, "index.html")
+
+@app.route("/<path:filename>")
+def frontend_static(filename):
+    # Evita conflito com rotas da API /v1/...
+    import os as _os
+    full = _os.path.join(_FRONTEND_DIR, filename)
+    if _os.path.isfile(full):
+        return send_from_directory(_FRONTEND_DIR, filename)
+    return jsonify({"status": "error", "data": None, "message": "Rota não encontrada."}), 404
+
 
 
 # ── Handler global de erros ───────────────────────────────────
@@ -97,6 +121,9 @@ if __name__ == "__main__":
     print()
     print("  Swagger UI (documentação interativa):")
     print("   GET    http://0.0.0.0:5000/docs")
+    print()
+    print("  Frontend Web:")
+    print("   GET    http://localhost:5000/web")
     print()
     print("  Pressione CTRL+C para parar.")
     print("=" * 65)

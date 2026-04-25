@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fiscal — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="flex-between mb-24">
+  <div>
+    <h2 style="font-size:18px;font-weight:700;">Cálculo Fiscal</h2>
+    <p class="text-muted text-sm mt-4">Calcule impostos e confirme notas fiscais</p>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+  <!-- ─── Formulário de intenção ──────────────────────────── -->
+  <div>
+    <div class="card mb-16">
+      <div class="card-header">
+        <span class="card-title">🧾 Intenção de Nota</span>
+        <span class="badge badge-gray">Pré-visualização</span>
+      </div>
+      <div class="card-body">
+        <p class="text-sm text-muted mb-16">
+          Adicione produtos abaixo para calcular os impostos antes de confirmar.
+        </p>
+
+        <!-- Adicionar item -->
+        <div class="form-row" style="align-items:flex-end;gap:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="fisc-sku">SKU do Produto</label>
+            <input id="fisc-sku" type="text" class="form-control" placeholder="Ex: PROD-001" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;max-width:120px;">
+            <label class="form-label" for="fisc-qtd">Qtd</label>
+            <input id="fisc-qtd" type="number" min="1" value="1" class="form-control" />
+          </div>
+          <button class="btn btn-secondary" onclick="adicionarItem()" style="flex-shrink:0;">
+            + Adicionar
+          </button>
+        </div>
+
+        <!-- Lista de itens adicionados -->
+        <div id="itens-lista" class="mt-16" style="display:none;">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Produto</th>
+                  <th>Qtd</th>
+                  <th>Bruto</th>
+                  <th>Imposto</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tb-itens-fiscal"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="itens-vazio" class="mt-16" style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">
+          Nenhum item adicionado ainda.
+        </div>
+
+        <div class="flex-center gap-8 mt-16" style="justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="limparItens()">Limpar</button>
+          <button class="btn btn-primary" id="btn-calcular" onclick="calcularIntencao()">
+            Calcular Impostos
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Resultado / Confirmação ─────────────────────────── -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📊 Resultado do Cálculo</span>
+      </div>
+      <div class="card-body">
+
+        <!-- Estado inicial -->
+        <div id="resultado-vazio" style="text-align:center;padding:32px;color:var(--text-secondary);">
+          <div style="font-size:36px;margin-bottom:12px;">🧮</div>
+          <p class="text-sm">Adicione produtos e clique em "Calcular Impostos"</p>
+        </div>
+
+        <!-- Resultado -->
+        <div id="resultado-dados" class="hidden">
+          <div class="table-wrapper mb-16">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Qtd</th>
+                  <th>Alíq.</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="tb-resultado-itens"></tbody>
+            </table>
+          </div>
+
+          <div class="totals-box">
+            <div class="totals-row">
+              <span>Total Bruto</span>
+              <span id="res-bruto">—</span>
+            </div>
+            <div class="totals-row">
+              <span>Total Impostos</span>
+              <span id="res-imposto" style="color:var(--danger);">—</span>
+            </div>
+            <div class="totals-row total-final">
+              <span>Total Final da Nota</span>
+              <span id="res-total">—</span>
+            </div>
+          </div>
+
+          <!-- Formulário de confirmação -->
+          <div class="mt-16" style="border-top:1px solid var(--border);padding-top:16px;">
+            <p class="text-sm text-muted mb-16">
+              Para confirmar: informe o número e descrição da nota, depois clique em Confirmar.
+            </p>
+            <div class="form-group">
+              <label class="form-label" for="fisc-num-nota">Número da Nota</label>
+              <input id="fisc-num-nota" type="text" class="form-control" placeholder="Ex: NF-2026-001" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fisc-desc-nota">Descrição</label>
+              <input id="fisc-desc-nota" type="text" class="form-control" placeholder="Ex: Venda para cliente X" />
+            </div>
+            <button class="btn btn-success btn-full" id="btn-confirmar-nota" onclick="confirmarNota()">
+              ✅ Confirmar e Emitir Nota
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  injectLayout('fiscal', 'Cálculo Fiscal');
+
+  let itensAdicionados = [];    // [{ sku, quantidade }]
+  let ultimoCalculo = null;     // resposta da API /intent
+
+  function renderItensAdicionados() {
+    const tbody = document.getElementById('tb-itens-fiscal');
+    const lista = document.getElementById('itens-lista');
+    const vazio = document.getElementById('itens-vazio');
+
+    if (itensAdicionados.length === 0) {
+      lista.style.display = 'none';
+      vazio.style.display = 'block';
+      tbody.innerHTML = '';
+      return;
+    }
+
+    lista.style.display = 'block';
+    vazio.style.display = 'none';
+
+    tbody.innerHTML = itensAdicionados.map((item, idx) => `
+      <tr>
+        <td><span class="font-mono">${item.sku}</span></td>
+        <td>${item.nome || '—'}</td>
+        <td>${item.quantidade}</td>
+        <td>${item.valor_bruto ? formatBRL(item.valor_bruto) : '—'}</td>
+        <td>${item.valor_imposto ? formatBRL(item.valor_imposto) : '—'}</td>
+        <td>${item.valor_total ? formatBRL(item.valor_total) : '—'}</td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="removerItem(${idx})">✕</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function adicionarItem() {
+    const sku = document.getElementById('fisc-sku').value.trim().toUpperCase();
+    const qtd = parseInt(document.getElementById('fisc-qtd').value);
+
+    if (!sku) { toast('Informe o SKU do produto.', 'warning'); return; }
+    if (!qtd || qtd < 1) { toast('Informe uma quantidade válida.', 'warning'); return; }
+
+    // Evita duplicata de SKU
+    if (itensAdicionados.find(i => i.sku === sku)) {
+      toast('Este SKU já foi adicionado. Remova-o para alterar a quantidade.', 'warning');
+      return;
+    }
+
+    itensAdicionados.push({ sku, quantidade: qtd });
+    document.getElementById('fisc-sku').value = '';
+    document.getElementById('fisc-qtd').value = 1;
+
+    // Limpa resultado anterior
+    document.getElementById('resultado-dados').classList.add('hidden');
+    document.getElementById('resultado-vazio').style.display = 'block';
+    ultimoCalculo = null;
+
+    renderItensAdicionados();
+  }
+
+  function removerItem(idx) {
+    itensAdicionados.splice(idx, 1);
+    renderItensAdicionados();
+    ultimoCalculo = null;
+    document.getElementById('resultado-dados').classList.add('hidden');
+    document.getElementById('resultado-vazio').style.display = 'block';
+  }
+
+  function limparItens() {
+    itensAdicionados = [];
+    ultimoCalculo = null;
+    renderItensAdicionados();
+    document.getElementById('resultado-dados').classList.add('hidden');
+    document.getElementById('resultado-vazio').style.display = 'block';
+  }
+
+  async function calcularIntencao() {
+    if (itensAdicionados.length === 0) {
+      toast('Adicione pelo menos um item antes de calcular.', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btn-calcular');
+    setLoading(btn, true);
+
+    const res = await API.Notas.calcularIntencao(
+      itensAdicionados.map(i => ({ sku: i.sku, quantidade: i.quantidade }))
+    );
+
+    setLoading(btn, false);
+
+    if (!res.ok) {
+      toast(res.body.message, 'error');
+      return;
+    }
+
+    ultimoCalculo = res.body.data;
+
+    // Atualiza itens com dados da API
+    ultimoCalculo.itens.forEach(apiItem => {
+      const local = itensAdicionados.find(i => i.sku === apiItem.sku);
+      if (local) {
+        local.nome = apiItem.nome;
+        local.valor_bruto   = apiItem.valor_bruto;
+        local.valor_imposto = apiItem.valor_imposto;
+        local.valor_total   = apiItem.valor_total;
+      }
+    });
+
+    renderItensAdicionados();
+
+    // Exibe resultado
+    const t = ultimoCalculo.totais;
+    document.getElementById('res-bruto').textContent   = formatBRL(t.total_bruto);
+    document.getElementById('res-imposto').textContent = formatBRL(t.total_imposto);
+    document.getElementById('res-total').textContent   = formatBRL(t.total_final);
+
+    const tbRes = document.getElementById('tb-resultado-itens');
+    tbRes.innerHTML = ultimoCalculo.itens.map(i => `
+      <tr>
+        <td><strong>${i.nome}</strong><br><span class="font-mono text-muted">${i.sku}</span></td>
+        <td>${i.quantidade}</td>
+        <td>${(i.aliquota * 100).toFixed(1)}%</td>
+        <td style="font-weight:600;">${formatBRL(i.valor_total)}</td>
+      </tr>
+    `).join('');
+
+    document.getElementById('resultado-vazio').style.display = 'none';
+    document.getElementById('resultado-dados').classList.remove('hidden');
+
+    toast('Cálculo realizado. Confira os valores e confirme a nota.', 'success');
+  }
+
+  async function confirmarNota() {
+    if (!ultimoCalculo) {
+      toast('Calcule os impostos primeiro.', 'warning');
+      return;
+    }
+
+    const numero = document.getElementById('fisc-num-nota').value.trim();
+    const descricao = document.getElementById('fisc-desc-nota').value.trim();
+
+    if (!numero) { toast('Informe o número da nota.', 'warning'); return; }
+
+    const btn = document.getElementById('btn-confirmar-nota');
+    setLoading(btn, true);
+
+    const res = await API.Notas.confirmar(
+      numero, descricao || 'Nota emitida via sistema web',
+      itensAdicionados.map(i => ({ sku: i.sku, quantidade: i.quantidade }))
+    );
+
+    setLoading(btn, false);
+
+    if (res.ok) {
+      toast(`✅ Nota ${numero} emitida! Total: ${formatBRL(res.body.data.total_final)}`, 'success', 5000);
+      limparItens();
+      document.getElementById('fisc-num-nota').value = '';
+      document.getElementById('fisc-desc-nota').value = '';
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+</script>
+
+</body>
+</html>

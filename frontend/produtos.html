@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produtos — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ─── Cabeçalho da página ─────────────────────────────────── -->
+<div class="flex-between mb-24">
+  <div>
+    <h2 style="font-size:18px;font-weight:700;">Cadastro de Produtos</h2>
+    <p class="text-muted text-sm mt-4">Gerencie os produtos do catálogo</p>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('modal-produto')">
+    + Novo Produto
+  </button>
+</div>
+
+<!-- ─── Filtro de busca ─────────────────────────────────────── -->
+<div class="card mb-24">
+  <div class="card-body" style="padding:14px 20px;">
+    <div class="flex-center gap-8">
+      <input
+        id="input-busca"
+        type="text"
+        class="form-control"
+        placeholder="Buscar por nome do produto..."
+        style="max-width:360px;"
+        oninput="buscarProdutos()"
+      />
+      <button class="btn btn-secondary" onclick="carregarProdutos()">
+        🔄 Atualizar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Tabela de produtos ───────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📦 Lista de Produtos</span>
+    <span id="count-produtos" class="badge badge-blue">0 produtos</span>
+  </div>
+  <div class="table-wrapper" style="border:none;border-radius:0 0 var(--radius) var(--radius);">
+    <table>
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Nome</th>
+          <th>Preço Base</th>
+          <th>Alíquota</th>
+          <th>Preço c/ Imposto</th>
+          <th>Estoque</th>
+          <th style="text-align:center;">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tb-produtos">
+        <tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-secondary);">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─── Modal: Criar / Editar produto ───────────────────────── -->
+<div class="modal-overlay" id="modal-produto">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-prod-title">Novo Produto</span>
+      <span class="modal-close" onclick="closeModal('modal-produto')">×</span>
+    </div>
+    <div class="modal-body">
+      <div id="modal-prod-sku-group" class="form-group">
+        <label class="form-label" for="prod-sku">SKU <span style="color:var(--danger)">*</span></label>
+        <input id="prod-sku" type="text" class="form-control" placeholder="Ex: PROD-001" />
+        <span class="text-sm text-muted mt-4">Identificador único — não pode ser alterado depois.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="prod-nome">Nome <span style="color:var(--danger)">*</span></label>
+        <input id="prod-nome" type="text" class="form-control" placeholder="Ex: Caneta Azul" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" for="prod-preco">Preço Base (R$) <span style="color:var(--danger)">*</span></label>
+          <input id="prod-preco" type="number" step="0.01" min="0.01" class="form-control" placeholder="0,00" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" for="prod-aliquota">Alíquota Imposto (%) <span style="color:var(--danger)">*</span></label>
+          <input id="prod-aliquota" type="number" step="0.1" min="0" max="100" class="form-control" placeholder="18" />
+          <span class="text-sm text-muted mt-4">Informe em %. Ex: 18 = 18%</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-produto')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-prod" onclick="salvarProduto()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal: Confirmar exclusão ───────────────────────────── -->
+<div class="modal-overlay" id="modal-excluir">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">Confirmar Exclusão</span>
+      <span class="modal-close" onclick="closeModal('modal-excluir')">×</span>
+    </div>
+    <div class="modal-body">
+      <p>Tem certeza que deseja excluir o produto <strong id="excluir-sku-label"></strong>?</p>
+      <p class="text-sm text-muted mt-8">
+        ⚠️ Produtos com movimentações de estoque não podem ser removidos.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-excluir')">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirmar-excluir" onclick="confirmarExclusao()">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  injectLayout('produtos', 'Produtos');
+
+  let todosOsProdutos = [];
+  let skuParaExcluir = null;
+  let modoEdicao = false;
+  let skuEmEdicao = null;
+
+  // ── Carrega lista de produtos ──────────────────────────────
+  async function carregarProdutos() {
+    const res = await API.Produtos.listar();
+    if (!res.ok) { toast('Erro ao carregar produtos.', 'error'); return; }
+
+    todosOsProdutos = res.body.data;
+    renderTabela(todosOsProdutos);
+  }
+
+  function renderTabela(lista) {
+    const tb = document.getElementById('tb-produtos');
+    document.getElementById('count-produtos').textContent = `${lista.length} produtos`;
+
+    if (lista.length === 0) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-secondary);">Nenhum produto cadastrado ainda.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = lista.map(p => {
+      const aliq = (p.aliquota_imposto || p.aliquota || 0);
+      const precoComImposto = p.preco_base * (1 + aliq);
+      const estBadge = p.saldo_estoque <= 0
+        ? 'badge-red'
+        : p.saldo_estoque <= 5 ? 'badge-yellow' : 'badge-green';
+
+      return `
+        <tr>
+          <td><span class="font-mono">${p.sku}</span></td>
+          <td><strong>${p.nome}</strong></td>
+          <td>${formatBRL(p.preco_base)}</td>
+          <td>${(aliq * 100).toFixed(1)}%</td>
+          <td>${formatBRL(precoComImposto)}</td>
+          <td><span class="badge ${estBadge}">${p.saldo_estoque ?? 0} un.</span></td>
+          <td style="text-align:center;">
+            <div class="flex-center gap-8" style="justify-content:center;">
+              <button class="btn btn-secondary btn-sm" onclick="abrirEdicao('${p.sku}')">✏️ Editar</button>
+              <button class="btn btn-danger btn-sm" onclick="abrirExclusao('${p.sku}')">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ── Busca local por nome ───────────────────────────────────
+  function buscarProdutos() {
+    const termo = document.getElementById('input-busca').value.toLowerCase();
+    const filtrado = todosOsProdutos.filter(p =>
+      p.nome.toLowerCase().includes(termo) || p.sku.toLowerCase().includes(termo)
+    );
+    renderTabela(filtrado);
+  }
+
+  // ── Abrir modal de criação ─────────────────────────────────
+  document.querySelector('button[onclick="openModal(\'modal-produto\')"]').addEventListener('click', () => {
+    modoEdicao = false;
+    skuEmEdicao = null;
+    document.getElementById('modal-prod-title').textContent = 'Novo Produto';
+    document.getElementById('modal-prod-sku-group').style.display = 'block';
+    document.getElementById('prod-sku').value = '';
+    document.getElementById('prod-nome').value = '';
+    document.getElementById('prod-preco').value = '';
+    document.getElementById('prod-aliquota').value = '';
+  });
+
+  // ── Abrir modal de edição ──────────────────────────────────
+  function abrirEdicao(sku) {
+    const p = todosOsProdutos.find(x => x.sku === sku);
+    if (!p) return;
+
+    modoEdicao = true;
+    skuEmEdicao = sku;
+
+    document.getElementById('modal-prod-title').textContent = `Editar — ${sku}`;
+    document.getElementById('modal-prod-sku-group').style.display = 'none'; // SKU imutável
+    document.getElementById('prod-nome').value = p.nome;
+    document.getElementById('prod-preco').value = p.preco_base;
+    document.getElementById('prod-aliquota').value = ((p.aliquota_imposto || p.aliquota || 0) * 100).toFixed(1);
+
+    openModal('modal-produto');
+  }
+
+  // ── Salvar produto (criar ou editar) ──────────────────────
+  async function salvarProduto() {
+    const btn = document.getElementById('btn-salvar-prod');
+
+    const nome  = document.getElementById('prod-nome').value.trim();
+    const preco = parseFloat(document.getElementById('prod-preco').value);
+    const aliq  = parseFloat(document.getElementById('prod-aliquota').value) / 100;
+
+    if (!nome || isNaN(preco) || isNaN(aliq)) {
+      toast('Preencha todos os campos corretamente.', 'warning');
+      return;
+    }
+
+    setLoading(btn, true);
+    let res;
+
+    if (modoEdicao) {
+      res = await API.Produtos.editar(skuEmEdicao, { nome, preco_base: preco, aliquota_imposto: aliq });
+    } else {
+      const sku = document.getElementById('prod-sku').value.trim();
+      if (!sku) { toast('Informe o SKU.', 'warning'); setLoading(btn, false); return; }
+      res = await API.Produtos.criar({ sku, nome, preco_base: preco, aliquota_imposto: aliq });
+    }
+
+    setLoading(btn, false);
+
+    if (res.ok) {
+      toast(res.body.message, 'success');
+      closeModal('modal-produto');
+      carregarProdutos();
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+
+  // ── Excluir produto ────────────────────────────────────────
+  function abrirExclusao(sku) {
+    skuParaExcluir = sku;
+    document.getElementById('excluir-sku-label').textContent = sku;
+    openModal('modal-excluir');
+  }
+
+  async function confirmarExclusao() {
+    if (!skuParaExcluir) return;
+    const btn = document.getElementById('btn-confirmar-excluir');
+    setLoading(btn, true);
+
+    const res = await API.Produtos.remover(skuParaExcluir);
+    setLoading(btn, false);
+
+    if (res.ok) {
+      toast(`Produto ${skuParaExcluir} removido.`, 'success');
+      closeModal('modal-excluir');
+      carregarProdutos();
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+
+  carregarProdutos();
+</script>
+
+</body>
+</html>

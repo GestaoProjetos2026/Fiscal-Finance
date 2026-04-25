@@ -118,7 +118,9 @@ def criar_produto():
     sku      = dados.get("sku",              "").strip()
     nome     = dados.get("nome",             "").strip()
     preco    = dados.get("preco_base")
-    aliquota = dados.get("aliquota_imposto")
+    aliquota = dados.get("aliquota_imposto")  # aceita 'aliquota_imposto' do frontend
+    if aliquota is None:
+        aliquota = dados.get("aliquota")        # aceita 'aliquota' direto também
 
     # Validação 2: campos obrigatórios e regras de negócio
     if not sku:
@@ -149,7 +151,7 @@ def criar_produto():
 
     # Tudo válido: salvar no banco
     cursor.execute(
-        "INSERT INTO produtos (sku, nome, preco_base, aliquota_imposto) VALUES (?, ?, ?, ?)",
+        "INSERT INTO produtos (sku, nome, preco_base, aliquota) VALUES (?, ?, ?, ?)",
         (sku, nome, preco, aliquota)
     )
     conn.commit()
@@ -161,7 +163,7 @@ def criar_produto():
             "sku": sku,
             "nome": nome,
             "preco_base": preco,
-            "aliquota_imposto": aliquota
+            "aliquota_imposto": aliquota   # devolve com nome do frontend
         },
         "message": "Produto criado com sucesso."
     }), 201
@@ -210,7 +212,8 @@ def editar_produto(sku):
     produto_dict  = dict(produto_atual)
     novo_nome     = dados.get("nome",             produto_dict["nome"]).strip()
     novo_preco    = dados.get("preco_base",       produto_dict["preco_base"])
-    nova_aliquota = dados.get("aliquota_imposto", produto_dict["aliquota_imposto"])
+    # aceita 'aliquota_imposto' (frontend) ou 'aliquota' (banco direto)
+    nova_aliquota = dados.get("aliquota_imposto", dados.get("aliquota", produto_dict["aliquota"]))
 
     # Validações nos novos valores
     if not novo_nome:
@@ -227,7 +230,7 @@ def editar_produto(sku):
                         "message": "Campo 'aliquota_imposto' deve ser entre 0 e 1."}), 400
 
     cursor.execute(
-        "UPDATE produtos SET nome = ?, preco_base = ?, aliquota_imposto = ? WHERE sku = ?",
+        "UPDATE produtos SET nome = ?, preco_base = ?, aliquota = ? WHERE sku = ?",
         (novo_nome, novo_preco, nova_aliquota, sku)
     )
     conn.commit()
@@ -239,7 +242,7 @@ def editar_produto(sku):
             "sku": sku,
             "nome": novo_nome,
             "preco_base": novo_preco,
-            "aliquota_imposto": nova_aliquota
+            "aliquota_imposto": nova_aliquota   # devolve com nome do frontend
         },
         "message": "Produto atualizado com sucesso."
     }), 200
