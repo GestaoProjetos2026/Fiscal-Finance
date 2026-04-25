@@ -26,7 +26,7 @@ Fiscal-Finance/
 ├── backend/             # Lógica da API Flask (rotas, validações, banco de dados)
 ├── frontend/            # Toda a interface do usuário (Páginas, Scripts e Estilos)
 ├── docs/                # Documentação técnica e planejamento antigo do sistema
-├── PROTOTIPO/           # Arquivo do banco de dados (app.db) e código legado
+├── data/                # Arquivo do banco de dados local (app.db) e schemas
 └── run_web.bat          # Inicializador automático do sistema
 ```
 
