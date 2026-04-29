@@ -41,7 +41,85 @@ class JanelaPrincipal(QMainWindow):
         
         # 1. CARREGA O DESENHO DA TELA (.ui)
         uic.loadUi(resource_path("tela_principal.ui"), self)
-        
+
+        # 2. RENOMEIA AS ABAS (remove "Módulo X:" — mantém .ui limpo para Qt Designer)
+        if hasattr(self, 'tabWidget'):
+            nomes = ["Produtos", "Estoque", "Fiscal", "Caixa", "Nota Fiscal"]
+            for i, nome in enumerate(nomes):
+                if i < self.tabWidget.count():
+                    self.tabWidget.setTabText(i, nome)
+
+        # 3. TEMA VISUAL — paleta suave, sem estilo Windows padrão
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background-color: #f0f2f5;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 13px;
+                color: #2c3e50;
+            }
+            QTabWidget::pane {
+                border: 1px solid #d0d7e3;
+                border-radius: 6px;
+                background-color: #ffffff;
+            }
+            QTabBar::tab {
+                background-color: #e2e8f0;
+                color: #4a5568;
+                padding: 8px 18px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background-color: #ffffff;
+                color: #2b6cb0;
+                font-weight: bold;
+                border-bottom: 2px solid #2b6cb0;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: #cbd5e0;
+            }
+            QPushButton {
+                background-color: #2b6cb0;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 6px 14px;
+            }
+            QPushButton:hover {
+                background-color: #2c5282;
+            }
+            QPushButton:pressed {
+                background-color: #1a365d;
+            }
+            QLineEdit, QSpinBox, QTextEdit {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e0;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: #2d3748;
+            }
+            QLineEdit:focus, QSpinBox:focus, QTextEdit:focus {
+                border: 1px solid #2b6cb0;
+            }
+            QLabel {
+                color: #4a5568;
+            }
+            QGroupBox {
+                border: 1px solid #d0d7e3;
+                border-radius: 6px;
+                margin-top: 10px;
+                padding: 8px;
+                background-color: #f7fafc;
+            }
+            QGroupBox::title {
+                color: #2b6cb0;
+                font-weight: bold;
+                subcontrol-origin: margin;
+                left: 10px;
+            }
+        """)
+
         # Inicia o Banco de Dados
         database.init_db()
         
@@ -81,7 +159,7 @@ class JanelaPrincipal(QMainWindow):
             
         # Atualização em tempo real ao navegar pelas abas
         if hasattr(self, 'tabWidget'):
-            self.tabWidget.currentChanged.connect(lambda idx: self.acao_atualizar_caixa())
+            self.tabWidget.currentChanged.connect(self.ao_trocar_aba)
 
         # --- Aba 5: Nota Fiscal (MOD5) ---
         if hasattr(self, 'btn_nf_criar'):
@@ -180,59 +258,92 @@ class JanelaPrincipal(QMainWindow):
 
     # --------------- MÓDULO 2: ESTOQUE ---------------
     def acao_estoque(self, tipo):
-        sku    = self.input_est_sku.text().strip()
-        qtd    = self.input_est_qtd.value()
-        motivo = self.input_est_motivo.text().strip() if hasattr(self, 'input_est_motivo') else ''
+        try:
+            sku    = self.input_est_sku.text().strip()
+            qtd    = self.input_est_qtd.value()
+            motivo = self.input_est_motivo.text().strip() if hasattr(self, 'input_est_motivo') else ''
         
-        if not sku or qtd <= 0:
-            QMessageBox.warning(self, "Aviso", "Informe SKU e quantidade válida!")
-            return
-
-        produto = database.buscar_produto(sku)
-        if not produto:
-            QMessageBox.warning(self, "Aviso", f"Produto '{sku}' não encontrado! Cadastre-o primeiro.")
-            return
-
-        if tipo == "saida":
-            # SAÍDA = Venda do produto → estoque DIMINUI, empresa RECEBE dinheiro
-            saldo = database.consultar_saldo_estoque(sku)
-            if saldo < qtd:
-                QMessageBox.warning(self, "Estoque Insuficiente",
-                    f"Não é possível vender {qtd} unidade(s).\n"
-                    f"Estoque disponível: {saldo} unidade(s).")
+            if not sku or qtd <= 0:
+                QMessageBox.warning(self, "Aviso", "Informe SKU e quantidade válida!")
                 return
 
-        elif tipo == "entrada":
-            # ENTRADA = Compra do produto → estoque AUMENTA, empresa GASTA dinheiro
-            custo_total = produto["preco_base"] * qtd
-            confirmacao = QMessageBox.question(
-                self, "Confirmar Compra",
-                f"Produto: {produto['nome']}\n"
-                f"Quantidade: {qtd} unidade(s)\n"
-                f"Custo total: R$ {custo_total:.2f}\n\n"
-                f"Confirmar entrada no estoque?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if confirmacao != QMessageBox.StandardButton.Yes:
+            produto = database.buscar_produto(sku)
+            if not produto:
+                QMessageBox.warning(self, "Aviso", f"Produto '{sku}' não encontrado! Cadastre-o primeiro.")
                 return
 
-        sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd, motivo)
-        if sucesso:
-            if tipo == "entrada":
-                custo = produto["preco_base"] * qtd
-                QMessageBox.information(self, "✅ Compra Registrada",
-                    f"Entrada de {qtd}x '{produto['nome']}' registrada!\n"
-                    f"Custo: R$ {custo:.2f}")
+            if tipo == "saida":
+                # SAÍDA = Venda do produto → estoque DIMINUI, empresa RECEBE dinheiro
+                saldo = database.consultar_saldo_estoque(sku)
+                if saldo < qtd:
+                    QMessageBox.warning(self, "Estoque Insuficiente",
+                        f"Não é possível vender {qtd} unidade(s).\n"
+                        f"Estoque disponível: {saldo} unidade(s).")
+                    return
+    
+            elif tipo == "entrada":
+                # ENTRADA = Compra do produto → estoque AUMENTA, empresa GASTA dinheiro
+                custo_total = produto["preco_base"] * qtd
+                confirmacao = QMessageBox.question(
+                    self, "Confirmar Compra",
+                    f"Produto: {produto['nome']}\n"
+                    f"Quantidade: {qtd} unidade(s)\n"
+                    f"Custo total: R$ {custo_total:.2f}\n\n"
+                    f"Confirmar entrada no estoque?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if confirmacao != QMessageBox.StandardButton.Yes:
+                    return
+    
+            sucesso, msg = database.registrar_movimentacao(sku, tipo, qtd, motivo)
+            if sucesso:
+                database.registrar_log(
+                    "INFO",
+                    f"Movimentação {tipo} SKU {sku} quantidade {qtd}"
+                    )
+                
+                    if tipo == "entrada":
+                        custo = produto["preco_base"] * qtd
+                        
+                        QMessageBox.information(self, "✅ Compra Registrada",
+                            f"Entrada de {qtd}x '{produto['nome']}' registrada!\n"
+                            f"Custo: R$ {custo:.2f}")
+                else:
+                    receita = produto["preco_base"] * qtd * 1.18
+                    QMessageBox.information(self, "✅ Venda Registrada",
+                        f"Saída de {qtd}x '{produto['nome']}' registrada!\n"
+                        f"Receita: R$ {receita:.2f}")
+                    
+                        saldo_atual = database.consultar_saldo_estoque(sku)
+    
+                        if saldo_atual <= 5:
+                            QMessageBox.warning(
+                                self,
+                                "⚠ Estoque Mínimo",
+                                f"O produto '{produto['nome']}' está com estoque baixo.\n"
+                                f"Saldo atual: {saldo_atual} unidade(s)."
+                            )
+                if hasattr(self, 'input_est_motivo'):
+                    self.input_est_motivo.clear()
+                self.acao_atualizar_caixa()
             else:
-                receita = produto["preco_base"] * qtd * 1.18
-                QMessageBox.information(self, "✅ Venda Registrada",
-                    f"Saída de {qtd}x '{produto['nome']}' registrada!\n"
-                    f"Receita: R$ {receita:.2f}")
-            if hasattr(self, 'input_est_motivo'):
-                self.input_est_motivo.clear()
-            self.acao_atualizar_caixa()
-        else:
-            QMessageBox.warning(self, "Aviso", msg)
+                QMessageBox.warning(self, "Aviso", msg)
+                
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Erro",
+                "Quantidade inválida. Digite apenas números."
+            )
+
+        except Exception as e:
+            database.registrar_log("ERROR", str(e))
+
+            QMessageBox.critical(
+                self,
+                "Erro Crítico",
+                f"Ocorreu um erro inesperado:\n{str(e)}"
+            )
 
     def acao_consultar_estoque(self):
         sku = self.input_est_sku.text().strip()
@@ -615,7 +726,12 @@ class JanelaPrincipal(QMainWindow):
         else:
             QMessageBox.critical(self, "❌ Erro na Emissão", mensagem)
 
+    def ao_trocar_aba(self, idx):
+    self.acao_atualizar_caixa()
 
+    if idx == 1:
+        self.acao_produtos_criticos()
+        
 # EXECUÇÃO DO APLICATIVO
 if __name__ == '__main__':
     app = QApplication(sys.argv)

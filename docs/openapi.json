@@ -1,0 +1,247 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Squad FISC — API Pública",
+    "description": "API pública do sistema fiscal, financeiro e de estoque do Squad FISC. Disponível para integração inter-squads. Requer autenticação via header `X-API-KEY`.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Squad FISC",
+      "url": "https://github.com/GestaoProjetos2026/Fiscal-Finance"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Desenvolvimento local"
+    },
+    {
+      "url": "http://<servidor-professor>:5000",
+      "description": "Servidor do professor (produção)"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-KEY",
+        "description": "Chave de API fornecida pelo Squad FISC. Ex: `FISC-PUBLIC-2026-SQUAD1`"
+      }
+    },
+    "schemas": {
+      "ProdutoPublico": {
+        "type": "object",
+        "properties": {
+          "sku":              { "type": "string",  "example": "PROD-001" },
+          "nome":             { "type": "string",  "example": "Caneta Azul" },
+          "preco_base":       { "type": "number",  "example": 2.50 },
+          "aliquota_imposto": { "type": "number",  "example": 0.12 },
+          "saldo_estoque":    { "type": "integer", "example": 45 }
+        }
+      },
+      "EstoquePublico": {
+        "type": "object",
+        "properties": {
+          "sku":                  { "type": "string",  "example": "PROD-001" },
+          "nome":                 { "type": "string",  "example": "Caneta Azul" },
+          "saldo_atual":          { "type": "integer", "example": 45 },
+          "ultima_movimentacao":  { "type": "string",  "format": "date-time", "example": "2026-04-23T18:00:00" }
+        }
+      },
+      "ResumoFinanceiro": {
+        "type": "object",
+        "properties": {
+          "saldo_atual":    { "type": "number", "example": 1520.00 },
+          "total_entradas": { "type": "number", "example": 3500.00 },
+          "total_despesas": { "type": "number", "example": 1980.00 },
+          "total_impostos": { "type": "number", "example": 420.00 }
+        }
+      },
+      "RespostaErro": {
+        "type": "object",
+        "properties": {
+          "status":  { "type": "string", "example": "error" },
+          "data":    { "type": "object", "nullable": true, "example": null },
+          "message": { "type": "string", "example": "Mensagem de erro." }
+        }
+      },
+      "Envelope": {
+        "type": "object",
+        "properties": {
+          "status":  { "type": "string", "enum": ["success", "error"] },
+          "data":    { "type": "object", "nullable": true },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/public/fisc/products/{sku}": {
+      "get": {
+        "summary": "Consultar produto por SKU",
+        "description": "Retorna os dados públicos de um produto incluindo saldo de estoque atual. Endpoint somente leitura.",
+        "operationId": "getProdutoPublico",
+        "tags": ["Produtos"],
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "required": true,
+            "description": "SKU único do produto",
+            "schema": { "type": "string", "example": "PROD-001" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/ProdutoPublico" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "sku": "PROD-001",
+                    "nome": "Caneta Azul",
+                    "preco_base": 2.50,
+                    "aliquota_imposto": 0.12,
+                    "saldo_estoque": 45
+                  },
+                  "message": "Produto encontrado."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API Key inválida ou ausente",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RespostaErro" },
+                "example": {
+                  "status": "error",
+                  "data": null,
+                  "message": "Acesso negado. Informe uma API Key válida no header X-API-KEY."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produto não encontrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RespostaErro" },
+                "example": {
+                  "status": "error",
+                  "data": null,
+                  "message": "Produto com SKU 'PROD-999' não encontrado."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/fisc/stock/{sku}": {
+      "get": {
+        "summary": "Consultar saldo de estoque por SKU",
+        "description": "Retorna o saldo de estoque atual de um produto e a data da última movimentação.",
+        "operationId": "getEstoquePublico",
+        "tags": ["Estoque"],
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "required": true,
+            "description": "SKU único do produto",
+            "schema": { "type": "string", "example": "PROD-001" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saldo consultado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/EstoquePublico" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "sku": "PROD-001",
+                    "nome": "Caneta Azul",
+                    "saldo_atual": 45,
+                    "ultima_movimentacao": "2026-04-23T18:00:00"
+                  },
+                  "message": "Saldo de estoque consultado."
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/public/fisc/cashflow/summary": {
+      "get": {
+        "summary": "Resumo financeiro do Squad FISC",
+        "description": "Retorna o resumo consolidado do fluxo de caixa: saldo atual, total de entradas, despesas e impostos.",
+        "operationId": "getResumoFinanceiro",
+        "tags": ["Caixa"],
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Resumo gerado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/ResumoFinanceiro" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "saldo_atual": 1520.00,
+                    "total_entradas": 3500.00,
+                    "total_despesas": 1980.00,
+                    "total_impostos": 420.00
+                  },
+                  "message": "Resumo financeiro gerado."
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    }
+  }
+}
