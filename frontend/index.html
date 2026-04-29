@@ -41,16 +41,6 @@
         />
       </div>
 
-      <div id="login-error" class="hidden" style="
-        background:var(--danger-bg);
-        border:1px solid #fca5a5;
-        color:#b91c1c;
-        border-radius:6px;
-        padding:10px 14px;
-        font-size:13px;
-        margin-bottom:14px;
-      "></div>
-
       <button id="btn-login" type="submit" class="btn btn-primary btn-full" style="margin-top:4px;">
         Entrar
       </button>
@@ -75,8 +65,6 @@
   document.getElementById('form-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btn-login');
-    const errEl = document.getElementById('login-error');
-    errEl.classList.add('hidden');
 
     const email = document.getElementById('input-email').value.trim();
     const senha = document.getElementById('input-senha').value;
@@ -92,8 +80,7 @@
       toast('Login realizado com sucesso!', 'success');
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
     } else {
-      errEl.textContent = res.body.message || 'Credenciais inválidas.';
-      errEl.classList.remove('hidden');
+      toast(res.body.message || 'Credenciais inválidas.', 'error');
     }
   });
 </script>

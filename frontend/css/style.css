@@ -471,22 +471,27 @@ tbody td {
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
   border-radius: 8px;
-  padding: 12px 18px;
+  padding: 14px 20px;
   box-shadow: var(--shadow-md);
   font-size: 13.5px;
   color: var(--text-primary);
-  min-width: 260px;
-  max-width: 380px;
+  min-width: 300px;
+  max-width: 420px;
   opacity: 0;
-  transform: translateX(40px);
-  transition: opacity .25s, transform .25s;
+  transform: translateX(50px);
+  transition: all .3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .toast.show { opacity: 1; transform: translateX(0); }
 .toast.success { border-left-color: var(--success); }
 .toast.error   { border-left-color: var(--danger); }
 .toast.warning { border-left-color: var(--warning); }
+
+.toast-icon { font-size: 18px; }
 
 /* ─── Modal ──────────────────────────────────────────────── */
 .modal-overlay {
@@ -559,14 +564,40 @@ tbody td {
 /* ─── Loading spinner ────────────────────────────────────── */
 .spinner {
   width: 18px; height: 18px;
-  border: 2px solid rgba(58,123,213,.25);
-  border-top-color: var(--accent);
+  border: 2px solid rgba(255,255,255,.2);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: spin .7s linear infinite;
   display: inline-block;
+  vertical-align: middle;
+}
+
+.btn .spinner {
+  margin-right: 8px;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Estado de loading global */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(13, 17, 23, 0.7);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+
+.loading-overlay.active { opacity: 1; pointer-events: auto; }
+
+.loading-spinner-lg {
+  width: 48px; height: 48px;
+  border: 4px solid var(--accent-light);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
 
 /* ─── Highlight de totais ────────────────────────────────── */
 .totals-box {
@@ -594,6 +625,59 @@ tbody td {
 }
 
 /* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  :root { --sidebar-w: 200px; }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .main-content {
+    margin-left: 0;
+  }
+  .topbar {
+    padding: 0 16px;
+  }
+  .page-content {
+    padding: 16px;
+  }
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .form-row, .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Menu toggle button for mobile/tablet */
+  .menu-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .topbar-title {
+    font-size: 13px;
+  }
+}
 /* ─── Scrollbar dark ────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-main); }

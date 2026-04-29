@@ -7,9 +7,19 @@ function toast(msg, type = 'info', duration = 3500) {
   const container = document.getElementById('toast-container');
   if (!container) return;
 
+  const icons = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️'
+  };
+
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.textContent = msg;
+  el.innerHTML = `
+    <span class="toast-icon">${icons[type] || icons.info}</span>
+    <span class="toast-msg">${msg}</span>
+  `;
   container.appendChild(el);
 
   requestAnimationFrame(() => {
@@ -46,9 +56,28 @@ function setLoading(btn, loading) {
     btn._originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Aguarde...';
+    btn.classList.add('btn-loading');
   } else {
     btn.disabled = false;
     btn.innerHTML = btn._originalText || btn.innerHTML;
+    btn.classList.remove('btn-loading');
+  }
+}
+
+// ─── Loading Global ───────────────────────────────────────────
+function setGlobalLoading(active) {
+  let overlay = document.querySelector('.loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = '<div class="loading-spinner-lg"></div>';
+    document.body.appendChild(overlay);
+  }
+
+  if (active) {
+    overlay.classList.add('active');
+  } else {
+    overlay.classList.remove('active');
   }
 }
 
@@ -117,6 +146,7 @@ window.toast = toast;
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.setLoading = setLoading;
+window.setGlobalLoading = setGlobalLoading;
 window.formatBRL = formatBRL;
 window.formatDate = formatDate;
 window.requireAuth = requireAuth;

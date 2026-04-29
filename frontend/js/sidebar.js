@@ -65,7 +65,12 @@ function injectLayout(pageId, pageTitle) {
 
     <div class="main-content">
       <header class="topbar">
-        <span class="topbar-title" id="topbar-title">${pageTitle}</span>
+        <div class="flex-center gap-12">
+          <button class="menu-toggle" id="menu-toggle" style="display:none;" onclick="toggleSidebar()">
+            ☰
+          </button>
+          <span class="topbar-title" id="topbar-title">${pageTitle}</span>
+        </div>
         <div class="topbar-right">
           <span style="font-size:12px;color:var(--text-secondary);" id="topbar-clock"></span>
         </div>
@@ -111,4 +116,11 @@ function injectLayout(pageId, pageTitle) {
   setInterval(updateClock, 1000);
 }
 
+// ─── Toggle Sidebar (Responsive) ──────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (sb) sb.classList.toggle('open');
+}
+
 window.injectLayout = injectLayout;
+window.toggleSidebar = toggleSidebar;
