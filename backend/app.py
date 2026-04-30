@@ -13,6 +13,7 @@ from cashflow   import cashflow_bp
 from invoice    import invoice_bp
 from auth       import auth_bp, init_db_auth
 from public_api import public_bp
+from stock      import stock_bp   # FISC-19: entrada de estoque
 
 app = Flask(__name__)
 
@@ -48,6 +49,7 @@ app.register_blueprint(auth_bp,     url_prefix="/v1/fisc")
 app.register_blueprint(products_bp, url_prefix="/v1/fisc")
 app.register_blueprint(cashflow_bp, url_prefix="/v1/fisc")
 app.register_blueprint(invoice_bp,  url_prefix="/v1/fisc")
+app.register_blueprint(stock_bp,    url_prefix="/v1/fisc")   # FISC-19
 app.register_blueprint(public_bp,   url_prefix="/v1")      # prefixo /v1 (public já inclui /public/fisc)
 
 
@@ -108,6 +110,9 @@ if __name__ == "__main__":
     print("   POST   /v1/fisc/invoice/intent")
     print("   POST   /v1/fisc/invoice/confirm")
     print("   GET    /v1/fisc/invoice/<numero>")
+    print()
+    print("  Estoque (FISC-19):")
+    print("   POST   /v1/fisc/stock/entry")
     print()
     print("  Caixa:")
     print("   GET    /v1/fisc/cashflow/balance")

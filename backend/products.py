@@ -21,14 +21,12 @@ def listar_produtos():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # JOIN com subquery que calcula saldo: SUM(entradas) - SUM(saidas)
+    # Usa coluna produtos.estoque como saldo (mantida sincronizada por invoice/confirm e stock/entry)
+    # CORREÇÃO: a query antiga usava JOIN com tabela 'estoque' (legada/vazia); agora usa produtos.estoque
     query = """
         SELECT
             p.*,
-            COALESCE(
-                (SELECT SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE -quantidade END)
-                 FROM estoque WHERE sku = p.sku),
-            0) AS saldo_estoque
+            p.estoque AS saldo_estoque
         FROM produtos p
     """
 
@@ -62,14 +60,12 @@ def buscar_produto(sku):
     conn = get_connection()
     cursor = conn.cursor()
 
-    # JOIN com subquery que calcula saldo: SUM(entradas) - SUM(saidas)
+    # Usa coluna produtos.estoque como saldo (mantida sincronizada por invoice/confirm e stock/entry)
+    # CORREÇÃO: a query antiga usava JOIN com tabela 'estoque' (legada/vazia); agora usa produtos.estoque
     cursor.execute("""
         SELECT
             p.*,
-            COALESCE(
-                (SELECT SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE -quantidade END)
-                 FROM estoque WHERE sku = p.sku),
-            0) AS saldo_estoque
+            p.estoque AS saldo_estoque
         FROM produtos p
         WHERE p.sku = ?
     """, (sku,))

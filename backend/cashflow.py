@@ -3,6 +3,11 @@
 # FISC-25: POST  /v1/fisc/cashflow/expense
 # FISC-26: GET   /v1/fisc/cashflow/balance
 # FISC-27: GET   /v1/fisc/cashflow/statement
+#
+# CORREÇÃO (30/04/2026): balance e statement passaram a ler SOMENTE a tabela `caixa`
+# como fonte de verdade, eliminando dupla contagem que ocorria porque o invoice/confirm
+# já insere uma linha em `caixa` ao confirmar a nota, e o código antigo também
+# recalculava receita via estoque_mov (contando duas vezes a mesma venda).
 
 from flask import Blueprint, request, jsonify
 from database import get_connection
@@ -18,22 +23,22 @@ cashflow_bp = Blueprint("cashflow", __name__)
 def consultar_saldo():
     """
     Retorna o saldo atual do caixa calculado em tempo real.
-    Receitas  = saídas de estoque (vendas)   × preco_base × 1.18
-    Despesas  = entradas manuais na tabela caixa + compras de estoque × preco_base
+    Fonte única de verdade: tabela `caixa`.
+      Receitas  = linhas com tipo = 'entrada'  (inseridas pelo invoice/confirm e futuras entradas manuais)
+      Despesas  = linhas com tipo = 'despesa'  (manuais) + tipo = 'compra' (entrada de estoque)
     """
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Receitas: vendas (saídas de estoque)
+    # Receitas totais (todas as entradas na tabela caixa)
     cursor.execute("""
-        SELECT COALESCE(SUM(e.quantidade * p.preco_base * 1.18), 0)
-        FROM estoque_mov e
-        JOIN produtos p ON e.sku = p.sku
-        WHERE e.tipo = 'saida'
+        SELECT COALESCE(SUM(valor_liquido), 0)
+        FROM caixa
+        WHERE tipo = 'entrada'
     """)
-    total_vendas = cursor.fetchone()[0]
+    total_entradas = cursor.fetchone()[0]
 
-    # Despesas manuais registradas na tabela caixa
+    # Despesas manuais registradas
     cursor.execute("""
         SELECT COALESCE(SUM(valor_liquido), 0)
         FROM caixa
@@ -41,30 +46,29 @@ def consultar_saldo():
     """)
     despesas_manuais = cursor.fetchone()[0]
 
-    # Custo das compras (entradas de estoque)
+    # Custo das compras de estoque (registradas com tipo 'compra')
     cursor.execute("""
-        SELECT COALESCE(SUM(e.quantidade * p.preco_base), 0)
-        FROM estoque_mov e
-        JOIN produtos p ON e.sku = p.sku
-        WHERE e.tipo = 'entrada'
+        SELECT COALESCE(SUM(valor_liquido), 0)
+        FROM caixa
+        WHERE tipo = 'compra'
     """)
     custo_compras = cursor.fetchone()[0]
 
     conn.close()
 
     total_despesas = despesas_manuais + custo_compras
-    saldo = total_vendas - total_despesas
+    saldo = total_entradas - total_despesas
 
     return jsonify({
         "status": "success",
         "data": {
-            "total_entradas":  round(total_vendas,    2),
+            "total_entradas":  round(total_entradas,  2),
             "total_despesas":  round(total_despesas,  2),
             "saldo_liquido":   round(saldo,            2),
             "detalhamento": {
-                "receita_vendas":   round(total_vendas,   2),
+                "receita_vendas":   round(total_entradas,   2),
                 "despesas_manuais": round(despesas_manuais, 2),
-                "custo_compras":    round(custo_compras,  2)
+                "custo_compras":    round(custo_compras,    2)
             }
         },
         "message": "Saldo calculado com sucesso."
@@ -143,6 +147,7 @@ def extrato_periodo():
     """
     Retorna todas as transações de caixa em um período.
     Params: ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    Fonte única: tabela `caixa` (entradas de vendas + despesas manuais + compras de estoque).
     """
     data_inicio = request.args.get("from")
     data_fim    = request.args.get("to")
@@ -161,71 +166,53 @@ def extrato_periodo():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Despesas manuais no período
+    # Todas as transações do período (fonte única: tabela caixa)
     cursor.execute("""
-        SELECT 'despesa_manual' AS origem, tipo, descricao, valor_liquido, data_registro
+        SELECT id, tipo, descricao, valor_liquido, data_registro
         FROM caixa
         WHERE date(data_registro) BETWEEN ? AND ?
         ORDER BY data_registro DESC
     """, (data_inicio, data_fim))
-    despesas = [dict(row) for row in cursor.fetchall()]
 
-    # Movimentações de estoque no período
-    cursor.execute("""
-        SELECT
-            e.tipo                                       AS origem_tipo,
-            p.nome                                       AS descricao,
-            e.quantidade * p.preco_base * 1.18           AS valor_venda,
-            e.quantidade * p.preco_base                  AS valor_custo,
-            e.data_mov                                   AS data_registro,
-            e.sku
-        FROM estoque_mov e
-        JOIN produtos p ON e.sku = p.sku
-        WHERE date(e.data_mov) BETWEEN ? AND ?
-        ORDER BY e.data_mov DESC
-    """, (data_inicio, data_fim))
+    rows = cursor.fetchall()
+    conn.close()
 
-    movs = []
+    transacoes = []
     total_entradas = 0.0
     total_despesas = 0.0
 
-    for row in cursor.fetchall():
+    # Labels amigáveis para exibição no frontend
+    tipo_label = {
+        'entrada': 'venda_estoque',
+        'despesa': 'despesa_manual',
+        'compra':  'compra_estoque',
+    }
+
+    for row in rows:
         r = dict(row)
-        if r["origem_tipo"] == "saida":
-            movs.append({
-                "origem": "venda_estoque",
-                "tipo": "entrada",
-                "descricao": f"Venda: {r['descricao']} ({r['sku']})",
-                "valor_liquido": round(r["valor_venda"], 2),
-                "data_registro": r["data_registro"]
-            })
-            total_entradas += r["valor_venda"]
+        eh_entrada = r["tipo"] == "entrada"
+
+        transacoes.append({
+            "origem":        tipo_label.get(r["tipo"], r["tipo"]),
+            "tipo":          "entrada" if eh_entrada else "despesa",
+            "descricao":     r["descricao"],
+            "valor_liquido": round(r["valor_liquido"], 2),
+            "data_registro": r["data_registro"]
+        })
+
+        if eh_entrada:
+            total_entradas += r["valor_liquido"]
         else:
-            movs.append({
-                "origem": "compra_estoque",
-                "tipo": "despesa",
-                "descricao": f"Compra: {r['descricao']} ({r['sku']})",
-                "valor_liquido": round(r["valor_custo"], 2),
-                "data_registro": r["data_registro"]
-            })
-            total_despesas += r["valor_custo"]
-
-    for d in despesas:
-        total_despesas += d["valor_liquido"]
-
-    conn.close()
-
-    todas = movs + despesas
-    todas.sort(key=lambda x: x["data_registro"], reverse=True)
+            total_despesas += r["valor_liquido"]
 
     return jsonify({
         "status": "success",
         "data": {
-            "periodo":         {"from": data_inicio, "to": data_fim},
+            "periodo":           {"from": data_inicio, "to": data_fim},
             "subtotal_entradas": round(total_entradas, 2),
             "subtotal_despesas": round(total_despesas, 2),
             "saldo_periodo":     round(total_entradas - total_despesas, 2),
-            "transacoes":        todas
+            "transacoes":        transacoes
         },
-        "message": f"{len(todas)} transação(ões) encontrada(s) no período."
+        "message": f"{len(transacoes)} transação(ões) encontrada(s) no período."
     }), 200

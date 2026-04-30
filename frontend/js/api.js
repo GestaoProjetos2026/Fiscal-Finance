@@ -92,15 +92,22 @@ const Produtos = {
   }
 };
 
-// ─── ESTOQUE ──────────────────────────────────────────────────
-// O estoque usa os mesmos endpoints de produtos (saldo_estoque vem junto)
-// Movimentações via invoice/confirm (saída) e endpoint futuro de entrada
+// ─── ESTOQUE ──────────────────────────────────────────────
+// Saldo via products (saldo_estoque = produtos.estoque)
+// Entradas: POST /stock/entry (FISC-19)
+// Saídas:   via invoice/confirm (baixa automática)
 const Estoque = {
   async listar() {
     return apiFetch('/products');
   },
   async buscar(sku) {
     return apiFetch(`/products/${encodeURIComponent(sku)}`);
+  },
+  async registrarEntrada(sku, quantidade, motivo) {
+    return apiFetch('/stock/entry', {
+      method: 'POST',
+      body: JSON.stringify({ sku, quantidade, motivo })
+    });
   }
 };
 

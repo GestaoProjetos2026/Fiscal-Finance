@@ -11,9 +11,12 @@
 <div class="flex-between mb-24">
   <div>
     <h2 style="font-size:18px;font-weight:700;">Controle de Estoque</h2>
-    <p class="text-muted text-sm mt-4">Consulte o saldo atual de todos os produtos</p>
+    <p class="text-muted text-sm mt-4">Consulte o saldo atual e registre entradas de produtos</p>
   </div>
-  <button class="btn btn-secondary" onclick="carregarEstoque()">🔄 Atualizar</button>
+  <div class="flex-center gap-8">
+    <button class="btn btn-primary" onclick="openModal('modal-entrada-estoque')">+ Entrada de Estoque</button>
+    <button class="btn btn-secondary" onclick="carregarEstoque()">&#x1F504; Atualizar</button>
+  </div>
 </div>
 
 <!-- ─── Cards de resumo ──────────────────────────────────────── -->
@@ -74,9 +77,42 @@
 <div class="card mt-16" style="border-left:4px solid var(--accent);">
   <div class="card-body" style="padding:14px 20px;">
     <p class="text-sm" style="color:var(--text-secondary);">
-      💡 <strong>Entradas de estoque</strong> são registradas através da <a href="notas.html" style="color:var(--accent);">emissão de Notas Fiscais de Compra</a>.
-      <strong>Saídas</strong> são geradas automaticamente ao confirmar uma nota fiscal de venda.
+      💡 <strong>Entradas de estoque</strong> são registradas pelo botão <strong>+ Entrada de Estoque</strong> acima (compra/reposição).
+      <strong>Saídas</strong> são geradas automaticamente ao confirmar uma nota fiscal de venda na tela <a href="fiscal.html" style="color:var(--accent);">Fiscal</a>.
     </p>
+  </div>
+</div>
+
+<!-- ─── Modal: Entrada de Estoque (FISC-19) ─────────────────── -->
+<div class="modal-overlay" id="modal-entrada-estoque">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Registrar Entrada de Estoque</span>
+      <span class="modal-close" onclick="closeModal('modal-entrada-estoque')">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="ent-sku">SKU do Produto <span style="color:var(--danger);">*</span></label>
+        <input id="ent-sku" type="text" class="form-control" placeholder="Ex: PROD-001" />
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" for="ent-qtd">Quantidade <span style="color:var(--danger);">*</span></label>
+          <input id="ent-qtd" type="number" min="1" step="1" class="form-control" placeholder="0" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" for="ent-motivo">Motivo / Fornecedor</label>
+          <input id="ent-motivo" type="text" class="form-control" placeholder="Ex: Compra Fornecedor X" />
+        </div>
+      </div>
+      <div id="ent-preview" class="hidden" style="margin-top:14px;padding:12px;background:var(--bg-card-alt);border-radius:8px;font-size:13px;color:var(--text-secondary);">
+        Custo estimado: <strong id="ent-custo">—</strong>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-entrada-estoque')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-entrada" onclick="salvarEntrada()">Confirmar Entrada</button>
+    </div>
   </div>
 </div>
 
@@ -146,6 +182,49 @@
   }
 
   carregarEstoque();
+
+  async function salvarEntrada() {
+    const btn    = document.getElementById('btn-salvar-entrada');
+    const sku    = document.getElementById('ent-sku').value.trim().toUpperCase();
+    const qtd    = parseInt(document.getElementById('ent-qtd').value);
+    const motivo = document.getElementById('ent-motivo').value.trim() || 'Entrada de estoque';
+
+    if (!sku)        { toast('Informe o SKU do produto.', 'warning'); return; }
+    if (!qtd || qtd < 1) { toast('Informe uma quantidade válida (mín. 1).', 'warning'); return; }
+
+    setLoading(btn, true);
+    const res = await API.Estoque.registrarEntrada(sku, qtd, motivo);
+    setLoading(btn, false);
+
+    if (res.ok) {
+      const d = res.body.data;
+      toast(`✅ ${qtd} un. de "${d.nome}" adicionadas. Saldo atual: ${d.saldo_atual}.`, 'success', 5000);
+      closeModal('modal-entrada-estoque');
+      document.getElementById('ent-sku').value    = '';
+      document.getElementById('ent-qtd').value    = '';
+      document.getElementById('ent-motivo').value = '';
+      document.getElementById('ent-preview').classList.add('hidden');
+      carregarEstoque();
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+
+  // Preview do custo estimado ao digitar SKU + quantidade
+  function atualizarPreview() {
+    const sku = document.getElementById('ent-sku').value.trim().toUpperCase();
+    const qtd = parseInt(document.getElementById('ent-qtd').value);
+    if (!sku || !qtd) { document.getElementById('ent-preview').classList.add('hidden'); return; }
+    const prod = todosEstoque.find(p => p.sku === sku);
+    if (prod) {
+      document.getElementById('ent-custo').textContent = formatBRL(prod.preco_base * qtd);
+      document.getElementById('ent-preview').classList.remove('hidden');
+    }
+  }
+
+  document.getElementById('ent-sku').addEventListener('input', atualizarPreview);
+  document.getElementById('ent-qtd').addEventListener('input', atualizarPreview);
+
 </script>
 
 </body>
