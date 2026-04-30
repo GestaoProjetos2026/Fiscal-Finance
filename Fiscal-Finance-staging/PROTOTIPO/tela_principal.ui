@@ -186,6 +186,158 @@
        </layout>
       </widget>
 
+     <!-- ABA 5: NOTA FISCAL (MOD5) -->
+      <widget class="QWidget" name="tab_nota_fiscal">
+       <attribute name="title">
+        <string>Módulo 5: Nota Fiscal</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_nf">
+
+        <!-- Seção: Criar Intenção -->
+        <item>
+         <widget class="QGroupBox" name="group_nf_cabecalho">
+          <property name="title"><string>Abrir Nova Intenção de Nota Fiscal</string></property>
+          <layout class="QFormLayout" name="formLayout_nf">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_nf_numero">
+             <property name="text"><string>Número da Nota:</string></property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="input_nf_numero">
+             <property name="placeholderText"><string>Ex: NF-2026-001</string></property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_nf_descricao">
+             <property name="text"><string>Descrição / Cliente:</string></property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="input_nf_descricao">
+             <property name="placeholderText"><string>Ex: Venda para Cliente XPTO</string></property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QPushButton" name="btn_nf_criar">
+             <property name="text"><string>📄 Abrir Nova Intenção de Nota</string></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Seção: Adicionar Item à Nota -->
+        <item>
+         <widget class="QGroupBox" name="group_nf_item">
+          <property name="title"><string>Adicionar Item à Nota</string></property>
+          <layout class="QFormLayout" name="formLayout_nf_item">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_nf_item_nota">
+             <property name="text"><string>Nº da Nota:</string></property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="input_nf_item_nota">
+             <property name="placeholderText"><string>Ex: NF-2026-001</string></property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_nf_item_sku">
+             <property name="text"><string>SKU do Produto:</string></property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="input_nf_item_sku"/>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="label_nf_validar">
+             <property name="text"><string>Validação:</string></property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <layout class="QHBoxLayout">
+             <item>
+              <widget class="QPushButton" name="btn_nf_validar_sku">
+               <property name="text"><string>🔍 Validar SKU</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_nf_sku_status">
+               <property name="text"><string>—</string></property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="label_nf_item_qtd">
+             <property name="text"><string>Quantidade:</string></property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QSpinBox" name="input_nf_item_qtd">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>9999</number></property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QPushButton" name="btn_nf_add_item">
+             <property name="text"><string>🧮 Calcular e Adicionar Item</string></property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Seção: Itens da Nota Selecionada -->
+        <item>
+         <widget class="QLabel" name="label_nf_itens">
+          <property name="text"><string>Itens da Nota (por número):</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="txt_nf_itens">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="placeholderText"><string>Os itens calculados da nota aparecerão aqui.</string></property>
+         </widget>
+        </item>
+
+        <!-- Seção: Totais da Nota -->
+        <item>
+         <widget class="QPushButton" name="btn_nf_totais">
+          <property name="text"><string>📊 Ver Totais da Nota</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="txt_nf_totais">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="placeholderText"><string>O resumo financeiro consolidado da nota aparecerá aqui.</string></property>
+         </widget>
+        </item>
+
+        <!-- Seção: Emitir Nota (MOD5 - Baixa de Estoque) -->
+        <item>
+         <widget class="QPushButton" name="btn_nf_emitir">
+          <property name="text"><string>📤 Emitir Nota e Baixar Estoque Automaticamente</string></property>
+         </widget>
+        </item>
+
+        <!-- Seção: Status / Histórico -->
+        <item>
+         <widget class="QLabel" name="label_nf_historico">
+          <property name="text"><string>Notas Fiscais Abertas:</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="txt_nf_status">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="placeholderText"><string>As intenções de nota fiscal abertas aparecerão aqui.</string></property>
+         </widget>
+        </item>
+
+       </layout>
+      </widget>
+
      </widget>
     </item>
    </layout>

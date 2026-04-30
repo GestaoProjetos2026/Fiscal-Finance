@@ -41,7 +41,85 @@ class JanelaPrincipal(QMainWindow):
         
         # 1. CARREGA O DESENHO DA TELA (.ui)
         uic.loadUi(resource_path("tela_principal.ui"), self)
-        
+
+        # 2. RENOMEIA AS ABAS (remove "Módulo X:" — mantém .ui limpo para Qt Designer)
+        if hasattr(self, 'tabWidget'):
+            nomes = ["Produtos", "Estoque", "Fiscal", "Caixa", "Nota Fiscal"]
+            for i, nome in enumerate(nomes):
+                if i < self.tabWidget.count():
+                    self.tabWidget.setTabText(i, nome)
+
+        # 3. TEMA VISUAL — paleta suave, sem estilo Windows padrão
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background-color: #f0f2f5;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 13px;
+                color: #2c3e50;
+            }
+            QTabWidget::pane {
+                border: 1px solid #d0d7e3;
+                border-radius: 6px;
+                background-color: #ffffff;
+            }
+            QTabBar::tab {
+                background-color: #e2e8f0;
+                color: #4a5568;
+                padding: 8px 18px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background-color: #ffffff;
+                color: #2b6cb0;
+                font-weight: bold;
+                border-bottom: 2px solid #2b6cb0;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: #cbd5e0;
+            }
+            QPushButton {
+                background-color: #2b6cb0;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 6px 14px;
+            }
+            QPushButton:hover {
+                background-color: #2c5282;
+            }
+            QPushButton:pressed {
+                background-color: #1a365d;
+            }
+            QLineEdit, QSpinBox, QTextEdit {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e0;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: #2d3748;
+            }
+            QLineEdit:focus, QSpinBox:focus, QTextEdit:focus {
+                border: 1px solid #2b6cb0;
+            }
+            QLabel {
+                color: #4a5568;
+            }
+            QGroupBox {
+                border: 1px solid #d0d7e3;
+                border-radius: 6px;
+                margin-top: 10px;
+                padding: 8px;
+                background-color: #f7fafc;
+            }
+            QGroupBox::title {
+                color: #2b6cb0;
+                font-weight: bold;
+                subcontrol-origin: margin;
+                left: 10px;
+            }
+        """)
+
         # Inicia o Banco de Dados
         database.init_db()
         
@@ -83,7 +161,21 @@ class JanelaPrincipal(QMainWindow):
         if hasattr(self, 'tabWidget'):
             self.tabWidget.currentChanged.connect(lambda idx: self.acao_atualizar_caixa())
 
+        # --- Aba 5: Nota Fiscal (MOD5) ---
+        if hasattr(self, 'btn_nf_criar'):
+            self.btn_nf_criar.clicked.connect(self.acao_criar_nota_fiscal)
+        if hasattr(self, 'btn_nf_add_item'):
+            self.btn_nf_add_item.clicked.connect(self.acao_adicionar_item_nota)
+        if hasattr(self, 'btn_nf_validar_sku'):
+            self.btn_nf_validar_sku.clicked.connect(self.acao_validar_sku_nota)
+        if hasattr(self, 'btn_nf_totais'):
+            self.btn_nf_totais.clicked.connect(self.acao_calcular_totais_nota)
+        if hasattr(self, 'btn_nf_emitir'):
+            self.btn_nf_emitir.clicked.connect(self.acao_emitir_nota_fiscal)
+
+        # Chama inicialização de caixas de texto ao abrir
         self.acao_atualizar_caixa()
+        self.acao_atualizar_lista_notas()
 
     def closeEvent(self, event):
         """Encerra o processo da API Flask quando a janela fecha."""
@@ -378,17 +470,229 @@ class JanelaPrincipal(QMainWindow):
 
     # --------------- MÓDULO 4: CAIXA ---------------
     def acao_atualizar_caixa(self):
-        if hasattr(self, 'txt_caixa_saldo'):
-            dados = database.consultar_resumo_caixa()
-            texto = (
-                f"=== EXTRATO FINANCEIRO ===\n"
-                f"\n"
-                f"  🟢 Receitas (Vendas):   R$ {dados['entradas']:.2f}\n"
-                f"  🔴 Custos (Compras):    R$ {dados['despesas']:.2f}\n"
-                f"  {'─' * 30}\n"
-                f"  💰 SALDO LÍQUIDO:       R$ {dados['saldo']:.2f}"
+        if not hasattr(self, 'txt_caixa_saldo'):
+            return
+            
+        dados = database.consultar_resumo_caixa()
+        texto = (
+            f"=== EXTRATO SQUAD FISC ===\n"
+            f"Total Entradas: R$ {dados['entradas']:.2f}\n"
+            f"Total Saídas / Despesas: R$ {dados['despesas']:.2f}\n"
+            f"-----------------------------\n"
+            f"SALdo LÍQUIDO NO CAIXA: R$ {dados['saldo']:.2f}\n"
+        )
+        self.txt_caixa_saldo.setPlainText(texto)
+
+    # --------------- MÓDULO 5: NOTA FISCAL ---------------
+    def acao_criar_nota_fiscal(self):
+        numero = self.input_nf_numero.text().strip()
+        descricao = self.input_nf_descricao.text().strip()
+
+        if not numero or not descricao:
+            QMessageBox.warning(self, "Aviso", "Preencha o Número da Nota e a Descrição!")
+            return
+
+        sucesso, nota_id, msg = database.criar_nota_fiscal(numero, descricao)
+        if sucesso:
+            QMessageBox.information(self, "Sucesso", f"Nota '{numero}' aberta!\nID interno: #{nota_id}")
+            self.input_nf_numero.clear()
+            self.input_nf_descricao.clear()
+            self.acao_atualizar_lista_notas()
+        else:
+            # Trata erro de duplicidade de forma amigável
+            if "UNIQUE" in str(msg):
+                QMessageBox.critical(self, "Erro", f"Já existe uma nota com o número '{numero}'.")
+            else:
+                QMessageBox.critical(self, "Erro", msg)
+
+    def acao_atualizar_lista_notas(self):
+        if not hasattr(self, 'txt_nf_status'):
+            return
+
+        notas = database.listar_notas()
+        if not notas:
+            self.txt_nf_status.setPlainText("Nenhuma intenção de nota fiscal criada ainda.")
+            return
+
+        linhas = ["=== INTENÇÕES DE NOTA FISCAL ==="]
+        for nf in notas:
+            status_icon = "✅" if nf['status'] == 'emitida' else "📄"
+            linhas.append(
+                f"{status_icon} [{nf['status'].upper()}] Nº {nf['numero_nota']} | {nf['descricao']} | Criada em: {nf['data_criacao']}"
             )
-            self.txt_caixa_saldo.setPlainText(texto)
+        self.txt_nf_status.setPlainText("\n".join(linhas))
+
+    def acao_validar_sku_nota(self):
+        """Valida o SKU em relação à nota informada e exibe o resultado no label inline."""
+        numero = self.input_nf_item_nota.text().strip()
+        sku = self.input_nf_item_sku.text().strip()
+
+        if not numero or not sku:
+            self.label_nf_sku_status.setText("⚠️ Informe o Nº da Nota e o SKU antes de validar.")
+            return
+
+        nota = database.buscar_nota_por_numero(numero)
+        if not nota:
+            self.label_nf_sku_status.setText(f"❌ Nota '{numero}' não encontrada.")
+            return
+
+        valido, codigo, mensagem, _ = database.validar_sku_para_nota(nota['id'], sku)
+
+        # Exibe o resultado no label inline com emoção de acordo com o código
+        icones = {
+            'OK':            mensagem,
+            'NOTA_EMITIDA':  f"🔒 {mensagem}",
+            'SKU_INEXISTENTE': f"❌ {mensagem}",
+            'SKU_DUPLICADO': f"⚠️ {mensagem}",
+        }
+        self.label_nf_sku_status.setText(icones.get(codigo, mensagem))
+
+    def acao_adicionar_item_nota(self):
+        numero = self.input_nf_item_nota.text().strip()
+        sku = self.input_nf_item_sku.text().strip()
+        qtd = self.input_nf_item_qtd.value()
+
+        if not numero or not sku:
+            QMessageBox.warning(self, "Aviso", "Informe o Número da Nota e o SKU do produto!")
+            return
+
+        # Busca a nota pelo número
+        nota = database.buscar_nota_por_numero(numero)
+        if not nota:
+            QMessageBox.critical(self, "Erro", f"Nota '{numero}' não encontrada. Crie a intenção primeiro.")
+            return
+
+        # --- VALIDAÇÃO CENTRALIZADA (MOD5 - Task 4) ---
+        valido, codigo, mensagem, produto = database.validar_sku_para_nota(nota['id'], sku)
+        self.label_nf_sku_status.setText(mensagem)  # Atualiza label inline
+
+        if not valido:
+            QMessageBox.critical(self, f"Validação [{codigo}]", mensagem)
+            return
+
+        # Calcula e insere o item (produto já veio da validação)
+        sucesso, valores, msg = database.adicionar_item_nota(
+            nota['id'], sku, qtd,
+            produto['preco_base'], produto['aliquota']
+        )
+
+        if sucesso:
+            texto_calculo = (
+                f"Item adicionado à Nota {numero}:\n"
+                f"  Produto: {produto['nome']} (SKU: {sku})\n"
+                f"  Quantidade: {qtd} uni.\n"
+                f"  Preço Unitário: R$ {produto['preco_base']:.2f}\n"
+                f"  Alíquota: {produto['aliquota']*100:.1f}%\n"
+                f"  Valor Bruto: R$ {valores['valor_bruto']:.2f}\n"
+                f"  Imposto: R$ {valores['valor_imposto']:.2f}\n"
+                f"  Total do Item: R$ {valores['valor_total']:.2f}"
+            )
+            QMessageBox.information(self, "Item Calculado", texto_calculo)
+            self.input_nf_item_sku.clear()
+            self.input_nf_item_qtd.setValue(1)
+            self.label_nf_sku_status.setText("—")
+            self.acao_exibir_itens_nota(numero)
+        else:
+            QMessageBox.critical(self, "Erro", msg)
+
+    def acao_exibir_itens_nota(self, numero_nota=None):
+        if not hasattr(self, 'txt_nf_itens'):
+            return
+
+        if numero_nota is None:
+            numero_nota = self.input_nf_item_nota.text().strip()
+
+        nota = database.buscar_nota_por_numero(numero_nota)
+        if not nota:
+            self.txt_nf_itens.setPlainText(f"Nota '{numero_nota}' não encontrada.")
+            return
+
+        itens = database.listar_itens_nota(nota['id'])
+        if not itens:
+            self.txt_nf_itens.setPlainText(f"Nenhum item adicionado à nota {numero_nota} ainda.")
+            return
+
+        linhas = [f"=== ITENS DA NOTA {numero_nota} ==="]
+        for i, item in enumerate(itens, 1):
+            linhas.append(
+                f"[{i}] SKU: {item['sku']} | Qtd: {item['quantidade']} | "
+                f"Unit: R$ {item['preco_base']:.2f} | "
+                f"Bruto: R$ {item['valor_bruto']:.2f} | "
+                f"Imposto ({item['aliquota']*100:.1f}%): R$ {item['valor_imposto']:.2f} | "
+                f"Total: R$ {item['valor_total']:.2f}"
+            )
+        self.txt_nf_itens.setPlainText("\n".join(linhas))
+
+    def acao_calcular_totais_nota(self):
+        numero = self.input_nf_item_nota.text().strip()
+
+        if not numero:
+            QMessageBox.warning(self, "Aviso", "Informe o Número da Nota no campo acima para calcular os totais!")
+            return
+
+        nota = database.buscar_nota_por_numero(numero)
+        if not nota:
+            QMessageBox.critical(self, "Erro", f"Nota '{numero}' não encontrada.")
+            return
+
+        totais = database.calcular_totais_nota(nota['id'])
+        if not totais:
+            self.txt_nf_totais.setPlainText(
+                f"A nota '{numero}' ainda não possui itens.\nAdicione itens antes de calcular os totais."
+            )
+            return
+
+        texto = (
+            f"========================================\n"
+            f"  RESUMO CONSOLIDADO — NOTA {numero}\n"
+            f"  {nota['descricao']}\n"
+            f"========================================\n"
+            f"  Total de Itens (linhas): {totais['num_itens']}\n"
+            f"  Total de Unidades:       {totais['total_qtd']}\n"
+            f"----------------------------------------\n"
+            f"  Total Bruto (sem imp.):  R$ {totais['total_bruto']:.2f}\n"
+            f"  Total Impostos:          R$ {totais['total_imposto']:.2f}\n"
+            f"========================================\n"
+            f"  TOTAL FINAL DA NOTA:     R$ {totais['total_final']:.2f}\n"
+            f"======================================="
+        )
+        self.txt_nf_totais.setPlainText(texto)
+
+    # --------------- MOD5: EMITIR NOTA (BAIXA DE ESTOQUE) ---------------
+    def acao_emitir_nota_fiscal(self):
+        numero = self.input_nf_item_nota.text().strip()
+
+        if not numero:
+            QMessageBox.warning(self, "Aviso", "Informe o Número da Nota no campo acima para emitir!")
+            return
+
+        # Confirmação antes de emitir (ação irreversível)
+        resposta = QMessageBox.question(
+            self,
+            "Confirmar Emissão",
+            f"Deseja emitir a nota '{numero}'?\n\n"
+            f"⚠️ Esta ação é IRREVERSÍVEL.\n"
+            f"O estoque será baixado automaticamente para todos os itens da nota.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if resposta != QMessageBox.StandardButton.Yes:
+            return
+
+        sucesso, mensagem, relatorio = database.emitir_nota_fiscal(numero)
+
+        if sucesso:
+            linhas_relatorio = "\n".join(relatorio) if relatorio else ""
+            QMessageBox.information(
+                self, "✅ Nota Emitida!",
+                f"{mensagem}\n\nBaixas realizadas no estoque:\n{linhas_relatorio}"
+            )
+            # Atualiza todos os painéis relevantes
+            self.acao_atualizar_lista_notas()
+            self.acao_calcular_totais_nota()
+            self.acao_exibir_itens_nota(numero)
+        else:
+            QMessageBox.critical(self, "❌ Erro na Emissão", mensagem)
+
 
 # EXECUÇÃO DO APLICATIVO
 if __name__ == '__main__':

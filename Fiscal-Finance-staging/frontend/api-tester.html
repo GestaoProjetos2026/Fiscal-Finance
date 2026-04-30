@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Tester — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .tester-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; height: calc(100vh - 120px); }
+    .endpoints-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .ep-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--bg-card);
+      transition: background var(--transition), border-color var(--transition);
+      text-align: left; width: 100%;
+    }
+    .ep-btn:hover { background: var(--bg-card-alt); }
+    .ep-btn.active { border-color: var(--accent); background: var(--accent-light); }
+    .ep-btn .method {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 4px; min-width: 42px; text-align: center;
+    }
+    .m-get    { background: #dbeafe; color: #1d4ed8; }
+    .m-post   { background: #dcfce7; color: #15803d; }
+    .m-put    { background: #fef9c3; color: #a16207; }
+    .m-delete { background: #fee2e2; color: #b91c1c; }
+    .ep-btn .ep-path { font-size: 12px; font-family: monospace; color: var(--text-secondary); }
+    .ep-btn .ep-name { font-size: 12px; font-weight: 500; }
+    .section-label-ep {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      color: var(--text-light); text-transform: uppercase; padding: 8px 4px 4px;
+    }
+    .panel { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+    .response-box {
+      background: #0f172a; color: #e2e8f0; border-radius: 8px;
+      padding: 16px; font-family: monospace; font-size: 12.5px;
+      min-height: 200px; white-space: pre-wrap; word-break: break-all;
+      overflow-y: auto; max-height: 400px; flex: 1;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .status-ok  { background: #dcfce7; color: #15803d; }
+    .status-err { background: #fee2e2; color: #b91c1c; }
+    .token-bar {
+      background: var(--bg-card-alt); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; font-size: 12px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .key-tag { font-family: monospace; font-size: 11px; background: #1e2533; color: #89b4fa; padding: 2px 8px; border-radius: 4px; }
+    .hint { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- Status de autenticação -->
+<div class="token-bar mb-16">
+  <span style="font-weight:600;">🔐 Auth Status:</span>
+  <span id="auth-status">—</span>
+  <span style="color:var(--text-light);">|</span>
+  <span style="font-weight:600;">🔑 API Keys válidas:</span>
+  <span class="key-tag">FISC-PUBLIC-2026-DEV</span>
+  <span class="key-tag">FISC-PUBLIC-2026-SQUAD1</span>
+  <span class="key-tag">FISC-PUBLIC-2026-SQUAD3</span>
+  <span class="key-tag">FISC-PUBLIC-2026-SQUAD4</span>
+  <span style="margin-left:auto;">
+    <a href="dashboard.html" class="btn btn-secondary btn-sm">← Voltar ao sistema</a>
+  </span>
+</div>
+
+<div class="tester-grid">
+  <!-- Lista de endpoints -->
+  <div class="card" style="overflow:hidden; display:flex; flex-direction:column;">
+    <div class="card-header" style="flex-shrink:0;">
+      <span class="card-title">📋 Endpoints</span>
+      <span id="ep-count" class="badge badge-blue">14 endpoints</span>
+    </div>
+    <div class="card-body endpoints-list" style="padding:12px;" id="endpoints-list"></div>
+  </div>
+
+  <!-- Painel de teste -->
+  <div class="panel" id="main-panel">
+    <div class="card" style="flex:1; display:flex; align-items:center; justify-content:center;">
+      <div style="text-align:center; color:var(--text-secondary); padding:60px 20px;">
+        <div style="font-size:48px; margin-bottom:16px;">🧪</div>
+        <p style="font-size:15px; font-weight:500;">Selecione um endpoint à esquerda</p>
+        <p class="text-sm text-muted mt-8">Preencha os campos e execute a requisição</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+
+  // ─── Guard: apenas admin pode acessar esta página ────────
+  const _currentUser = getUser();
+  if (!_currentUser || _currentUser.papel !== 'admin') {
+    toast('Acesso restrito a administradores.', 'error');
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
+    throw new Error('access denied');
+  }
+
+injectLayout('api-tester', 'API Tester');
+
+// ─── Definição de todos os endpoints ──────────────────────────────
+const ENDPOINTS = [
+  // AUTH
+  { group: 'Auth (JWT)', id: 'auth-login', method: 'POST', path: '/v1/fisc/auth/login', name: 'Login', auth: false,
+    fields: [
+      { id: 'email', label: 'E-mail', type: 'email', placeholder: 'admin@fiscal.com', default: 'admin@fiscal.com' },
+      { id: 'senha', label: 'Senha', type: 'password', placeholder: 'admin123', default: 'admin123' }
+    ],
+    buildBody: (f) => ({ email: f.email, senha: f.senha })
+  },
+  { group: 'Auth (JWT)', id: 'auth-me', method: 'GET', path: '/v1/fisc/auth/me', name: 'Meus dados', auth: true,
+    fields: [], buildBody: null
+  },
+  { group: 'Auth (JWT)', id: 'auth-logout', method: 'POST', path: '/v1/fisc/auth/logout', name: 'Logout', auth: true,
+    fields: [], buildBody: () => ({})
+  },
+
+  // PRODUTOS
+  { group: 'Produtos', id: 'prod-list', method: 'GET', path: '/v1/fisc/products', name: 'Listar produtos', auth: true,
+    fields: [{ id: 'nome', label: 'Filtro por nome (opcional)', type: 'text', placeholder: 'caneta' }],
+    buildUrl: (f) => f.nome ? `/v1/fisc/products?nome=${encodeURIComponent(f.nome)}` : '/v1/fisc/products',
+    buildBody: null
+  },
+  { group: 'Produtos', id: 'prod-get', method: 'GET', path: '/v1/fisc/products/{sku}', name: 'Buscar por SKU', auth: true,
+    fields: [{ id: 'sku', label: 'SKU', type: 'text', placeholder: 'PROD-001' }],
+    buildUrl: (f) => `/v1/fisc/products/${encodeURIComponent(f.sku)}`,
+    buildBody: null
+  },
+  { group: 'Produtos', id: 'prod-create', method: 'POST', path: '/v1/fisc/products', name: 'Criar produto', auth: true,
+    fields: [
+      { id: 'sku', label: 'SKU *', type: 'text', placeholder: 'PROD-001' },
+      { id: 'nome', label: 'Nome *', type: 'text', placeholder: 'Caneta Azul' },
+      { id: 'preco_base', label: 'Preço Base *', type: 'number', placeholder: '2.50' },
+      { id: 'aliquota_imposto', label: 'Alíquota (0 a 1) *', type: 'number', placeholder: '0.12', hint: 'Ex: 0.12 = 12%' }
+    ],
+    buildBody: (f) => ({ sku: f.sku, nome: f.nome, preco_base: parseFloat(f.preco_base), aliquota_imposto: parseFloat(f.aliquota_imposto) })
+  },
+  { group: 'Produtos', id: 'prod-edit', method: 'PUT', path: '/v1/fisc/products/{sku}', name: 'Editar produto', auth: true,
+    fields: [
+      { id: 'sku', label: 'SKU (na URL) *', type: 'text', placeholder: 'PROD-001' },
+      { id: 'nome', label: 'Novo nome', type: 'text', placeholder: 'Caneta Vermelha' },
+      { id: 'preco_base', label: 'Novo preço', type: 'number', placeholder: '3.00' },
+      { id: 'aliquota_imposto', label: 'Nova alíquota (0 a 1)', type: 'number', placeholder: '0.15' }
+    ],
+    buildUrl: (f) => `/v1/fisc/products/${encodeURIComponent(f.sku)}`,
+    buildBody: (f) => {
+      const b = {};
+      if (f.nome) b.nome = f.nome;
+      if (f.preco_base) b.preco_base = parseFloat(f.preco_base);
+      if (f.aliquota_imposto) b.aliquota_imposto = parseFloat(f.aliquota_imposto);
+      return b;
+    }
+  },
+  { group: 'Produtos', id: 'prod-delete', method: 'DELETE', path: '/v1/fisc/products/{sku}', name: 'Remover produto', auth: true,
+    fields: [{ id: 'sku', label: 'SKU *', type: 'text', placeholder: 'PROD-001' }],
+    buildUrl: (f) => `/v1/fisc/products/${encodeURIComponent(f.sku)}`,
+    buildBody: null
+  },
+
+  // NOTA FISCAL
+  { group: 'Nota Fiscal', id: 'nf-intent', method: 'POST', path: '/v1/fisc/invoice/intent', name: 'Calcular intenção', auth: true,
+    fields: [
+      { id: 'sku', label: 'SKU do item *', type: 'text', placeholder: 'PROD-001' },
+      { id: 'quantidade', label: 'Quantidade *', type: 'number', placeholder: '2' }
+    ],
+    buildBody: (f) => ({ itens: [{ sku: f.sku, quantidade: parseInt(f.quantidade) }] }),
+    hint: 'Envia 1 item. Para múltiplos use a página Fiscal.'
+  },
+  { group: 'Nota Fiscal', id: 'nf-confirm', method: 'POST', path: '/v1/fisc/invoice/confirm', name: 'Confirmar nota', auth: true,
+    fields: [
+      { id: 'numero', label: 'Número da nota *', type: 'text', placeholder: 'NF-2026-001' },
+      { id: 'descricao', label: 'Descrição', type: 'text', placeholder: 'Venda para cliente X' },
+      { id: 'sku', label: 'SKU do item *', type: 'text', placeholder: 'PROD-001' },
+      { id: 'quantidade', label: 'Quantidade *', type: 'number', placeholder: '1' }
+    ],
+    buildBody: (f) => ({ numero: f.numero, descricao: f.descricao || 'Nota via API Tester', itens: [{ sku: f.sku, quantidade: parseInt(f.quantidade) }] })
+  },
+  { group: 'Nota Fiscal', id: 'nf-get', method: 'GET', path: '/v1/fisc/invoice/{numero}', name: 'Buscar nota', auth: true,
+    fields: [{ id: 'numero', label: 'Número da nota *', type: 'text', placeholder: 'NF-2026-001' }],
+    buildUrl: (f) => `/v1/fisc/invoice/${encodeURIComponent(f.numero)}`,
+    buildBody: null
+  },
+
+  // CAIXA
+  { group: 'Caixa', id: 'caixa-balance', method: 'GET', path: '/v1/fisc/cashflow/balance', name: 'Saldo atual', auth: true,
+    fields: [], buildBody: null
+  },
+  { group: 'Caixa', id: 'caixa-expense', method: 'POST', path: '/v1/fisc/cashflow/expense', name: 'Registrar despesa', auth: true,
+    fields: [
+      { id: 'descricao', label: 'Descrição *', type: 'text', placeholder: 'Aluguel' },
+      { id: 'valor', label: 'Valor (R$) *', type: 'number', placeholder: '1200.00' },
+      { id: 'data', label: 'Data (opcional)', type: 'date', hint: 'Formato YYYY-MM-DD' }
+    ],
+    buildBody: (f) => { const b = { descricao: f.descricao, valor: parseFloat(f.valor) }; if (f.data) b.data = f.data; return b; }
+  },
+  { group: 'Caixa', id: 'caixa-statement', method: 'GET', path: '/v1/fisc/cashflow/statement', name: 'Extrato por período', auth: true,
+    fields: [
+      { id: 'from', label: 'De (from) *', type: 'date' },
+      { id: 'to', label: 'Até (to) *', type: 'date' }
+    ],
+    buildUrl: (f) => `/v1/fisc/cashflow/statement?from=${f.from}&to=${f.to}`,
+    buildBody: null
+  },
+
+  // API PÚBLICA
+  { group: 'API Pública (X-API-KEY)', id: 'pub-product', method: 'GET', path: '/v1/public/fisc/products/{sku}', name: 'Produto público', auth: false, apiKey: true,
+    fields: [
+      { id: 'apikey', label: 'X-API-KEY *', type: 'text', placeholder: 'FISC-PUBLIC-2026-DEV', default: 'FISC-PUBLIC-2026-DEV' },
+      { id: 'sku', label: 'SKU *', type: 'text', placeholder: 'PROD-001' }
+    ],
+    buildUrl: (f) => `/v1/public/fisc/products/${encodeURIComponent(f.sku)}`,
+    buildBody: null,
+    buildHeaders: (f) => ({ 'X-API-KEY': f.apikey })
+  },
+  { group: 'API Pública (X-API-KEY)', id: 'pub-stock', method: 'GET', path: '/v1/public/fisc/stock/{sku}', name: 'Estoque público', auth: false, apiKey: true,
+    fields: [
+      { id: 'apikey', label: 'X-API-KEY *', type: 'text', placeholder: 'FISC-PUBLIC-2026-DEV', default: 'FISC-PUBLIC-2026-DEV' },
+      { id: 'sku', label: 'SKU *', type: 'text', placeholder: 'PROD-001' }
+    ],
+    buildUrl: (f) => `/v1/public/fisc/stock/${encodeURIComponent(f.sku)}`,
+    buildBody: null,
+    buildHeaders: (f) => ({ 'X-API-KEY': f.apikey })
+  },
+  { group: 'API Pública (X-API-KEY)', id: 'pub-summary', method: 'GET', path: '/v1/public/fisc/cashflow/summary', name: 'Resumo financeiro', auth: false, apiKey: true,
+    fields: [
+      { id: 'apikey', label: 'X-API-KEY *', type: 'text', placeholder: 'FISC-PUBLIC-2026-DEV', default: 'FISC-PUBLIC-2026-DEV' }
+    ],
+    buildUrl: () => '/v1/public/fisc/cashflow/summary',
+    buildBody: null,
+    buildHeaders: (f) => ({ 'X-API-KEY': f.apikey })
+  }
+];
+
+// ─── Render sidebar de endpoints ──────────────────────────────────
+function renderEndpointList() {
+  const container = document.getElementById('endpoints-list');
+  let currentGroup = null;
+  let html = '';
+
+  ENDPOINTS.forEach(ep => {
+    if (ep.group !== currentGroup) {
+      currentGroup = ep.group;
+      html += `<div class="section-label-ep">${ep.group}</div>`;
+    }
+    const mc = ep.method.toLowerCase();
+    html += `
+      <button class="ep-btn" id="btn-${ep.id}" onclick="selectEndpoint('${ep.id}')">
+        <span class="method m-${mc}">${ep.method}</span>
+        <div>
+          <div class="ep-name">${ep.name}</div>
+          <div class="ep-path">${ep.path}</div>
+        </div>
+      </button>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ─── Selecionar e renderizar painel ──────────────────────────────
+let activeEp = null;
+
+function selectEndpoint(id) {
+  activeEp = ENDPOINTS.find(e => e.id === id);
+  if (!activeEp) return;
+
+  // Marca botão ativo
+  document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + id)?.classList.add('active');
+
+  const mc = activeEp.method.toLowerCase();
+  const panel = document.getElementById('main-panel');
+
+  const fieldsHtml = activeEp.fields.map(f => `
+    <div class="form-group">
+      <label class="form-label" for="f-${f.id}">${f.label}</label>
+      <input id="f-${f.id}" type="${f.type || 'text'}"
+        class="form-control"
+        placeholder="${f.placeholder || ''}"
+        value="${f.default || ''}" />
+      ${f.hint ? `<span class="hint">${f.hint}</span>` : ''}
+    </div>
+  `).join('');
+
+  panel.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="flex-center gap-8">
+            <span class="method m-${mc}" style="padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;">${activeEp.method}</span>
+            <span style="font-family:monospace;font-size:13px;font-weight:600;">${activeEp.path}</span>
+          </div>
+          <div class="text-sm text-muted mt-4">${activeEp.name}</div>
+        </div>
+        <button class="btn btn-primary" id="btn-run" onclick="runEndpoint()">▶ Executar</button>
+      </div>
+      <div class="card-body">
+        ${activeEp.fields.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${fieldsHtml}</div>` : '<p class="text-sm text-muted">Nenhum parâmetro necessário.</p>'}
+        ${activeEp.hint ? `<div style="background:var(--warning-bg);border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-top:12px;font-size:12.5px;">⚠️ ${activeEp.hint}</div>` : ''}
+        ${activeEp.auth ? '<p class="hint mt-8">🔐 Requer JWT — Token do localStorage será usado automaticamente.</p>' : ''}
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;">
+      <div class="card-header">
+        <span class="card-title">📨 Resposta</span>
+        <div class="flex-center gap-8" id="resp-status"></div>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="response-box" id="response-box">Aguardando execução...</div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Executar endpoint ────────────────────────────────────────────
+async function runEndpoint() {
+  if (!activeEp) return;
+  const btn = document.getElementById('btn-run');
+  setLoading(btn, true);
+
+  // Coleta valores dos campos
+  const fieldValues = {};
+  activeEp.fields.forEach(f => {
+    const el = document.getElementById('f-' + f.id);
+    if (el) fieldValues[f.id] = el.value.trim();
+  });
+
+  // Monta URL
+  const url = activeEp.buildUrl
+    ? `http://localhost:5000${activeEp.buildUrl(fieldValues)}`
+    : `http://localhost:5000${activeEp.path}`;
+
+  // Monta headers
+  const headers = { 'Content-Type': 'application/json' };
+  if (activeEp.auth) {
+    const tok = getToken();
+    if (tok) headers['Authorization'] = tok;
+  }
+  if (activeEp.buildHeaders) {
+    Object.assign(headers, activeEp.buildHeaders(fieldValues));
+  }
+
+  // Monta body
+  const body = activeEp.buildBody ? activeEp.buildBody(fieldValues) : null;
+
+  const reqDisplay = [
+    `${activeEp.method} ${url}`,
+    ...Object.entries(headers).map(([k,v]) => `${k}: ${k === 'Authorization' ? v.substring(0,30)+'…' : v}`),
+    body ? `\nBody: ${JSON.stringify(body, null, 2)}` : ''
+  ].join('\n');
+
+  document.getElementById('response-box').textContent = `→ ${reqDisplay}\n\n⏳ Aguardando resposta...`;
+
+  try {
+    const opts = { method: activeEp.method, headers };
+    if (body) opts.body = JSON.stringify(body);
+
+    const t0 = Date.now();
+    const res = await fetch(url, opts);
+    const ms  = Date.now() - t0;
+    const json = await res.json();
+
+    document.getElementById('resp-status').innerHTML = `
+      <span class="status-pill ${res.ok ? 'status-ok' : 'status-err'}">
+        ${res.ok ? '✅' : '❌'} ${res.status} ${res.ok ? 'OK' : 'ERRO'}
+      </span>
+      <span class="text-sm text-muted">${ms}ms</span>`;
+
+    document.getElementById('response-box').textContent =
+      `→ ${reqDisplay}\n\n← ${JSON.stringify(json, null, 2)}`;
+
+    // Se foi login com sucesso, salva token
+    if (activeEp.id === 'auth-login' && res.ok && json.data?.token) {
+      setToken(json.data.token);
+      setUser({ nome: json.data.nome, papel: json.data.papel });
+      updateAuthStatus();
+      toast('Token JWT salvo! Agora pode usar os endpoints protegidos.', 'success');
+    }
+
+    // Se foi logout, limpa token
+    if (activeEp.id === 'auth-logout' && res.ok) {
+      clearToken();
+      updateAuthStatus();
+      toast('Token removido.', 'warning');
+    }
+
+  } catch (err) {
+    document.getElementById('resp-status').innerHTML = `<span class="status-pill status-err">❌ ERRO DE REDE</span>`;
+    document.getElementById('response-box').textContent = `ERRO: ${err.message}\n\nVerifique se o servidor Flask está rodando em http://localhost:5000`;
+  }
+
+  setLoading(btn, false);
+}
+
+// ─── Status de autenticação no topo ──────────────────────────────
+function updateAuthStatus() {
+  const el = document.getElementById('auth-status');
+  const tok = getToken();
+  const user = getUser();
+  if (tok && user) {
+    el.innerHTML = `<span style="color:#15803d;font-weight:600;">✅ Autenticado como <em>${user.nome}</em></span>`;
+  } else {
+    el.innerHTML = `<span style="color:var(--danger);">❌ Não autenticado — execute o endpoint Login primeiro</span>`;
+  }
+}
+
+// ─── Adiciona "API Tester" na nav da sidebar ──────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderEndpointList();
+  updateAuthStatus();
+});
+
+window.selectEndpoint = selectEndpoint;
+window.runEndpoint = runEndpoint;
+</script>
+
+</body>
+</html>

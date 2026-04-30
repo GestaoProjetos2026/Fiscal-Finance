@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usuários — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="flex-between mb-24">
+  <div>
+    <h2 style="font-size:18px;font-weight:700;">Gestão de Usuários</h2>
+    <p class="text-muted text-sm mt-4">Administre acessos e papéis do sistema</p>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('modal-usuario')">
+    + Novo Usuário
+  </button>
+</div>
+
+<!-- ─── Tabela de usuários ───────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">👥 Lista de Usuários</span>
+    <span id="count-usuarios" class="badge badge-blue">0 usuários</span>
+  </div>
+  <div class="table-wrapper" style="border:none;border-radius:0 0 var(--radius) var(--radius);">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nome</th>
+          <th>E-mail</th>
+          <th>Papel</th>
+          <th>Status</th>
+          <th>Criado Em</th>
+          <th style="text-align:center;">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tb-usuarios">
+        <tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-secondary);">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─── Modal: Criar / Editar usuário ───────────────────────── -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-user-title">Novo Usuário</span>
+      <span class="modal-close" onclick="closeModal('modal-usuario')">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="user-nome">Nome <span style="color:var(--danger)">*</span></label>
+        <input id="user-nome" type="text" class="form-control" placeholder="Ex: João da Silva" />
+      </div>
+
+      <div class="form-group" id="modal-user-email-group">
+        <label class="form-label" for="user-email">E-mail <span style="color:var(--danger)">*</span></label>
+        <input id="user-email" type="email" class="form-control" placeholder="joao@fiscal.com" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" for="user-papel">Papel (RBAC) <span style="color:var(--danger)">*</span></label>
+          <select id="user-papel" class="form-control">
+            <option value="operador">Operador (Leitura/Básico)</option>
+            <option value="gerente">Gerente (Edição/Operações)</option>
+            <option value="admin">Administrador (Total)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;" id="modal-user-senha-group">
+          <label class="form-label" id="user-senha-label" for="user-senha">Senha <span style="color:var(--danger)">*</span></label>
+          <input id="user-senha" type="password" class="form-control" placeholder="Mínimo 6 caracteres" />
+        </div>
+      </div>
+      
+      <div class="form-group mt-16" id="modal-user-ativo-group" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+          <input type="checkbox" id="user-ativo" />
+          Usuário ativo no sistema
+        </label>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-user" onclick="salvarUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal: Confirmar inativação ───────────────────────────── -->
+<div class="modal-overlay" id="modal-excluir">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">Confirmar Desativação</span>
+      <span class="modal-close" onclick="closeModal('modal-excluir')">×</span>
+    </div>
+    <div class="modal-body">
+      <p>Tem certeza que deseja desativar o usuário <strong id="excluir-user-nome"></strong>?</p>
+      <p class="text-sm text-muted mt-8">
+        Ele não poderá mais acessar o sistema. Esta ação não apaga o histórico do usuário no banco.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-excluir')">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirmar-excluir" onclick="confirmarDesativacao()">Desativar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  
+  // Impede que usuários não admin acessem a página pela URL
+  const _me = getUser();
+  if (_me && _me.papel !== 'admin') {
+    toast('Você não tem permissão para acessar esta página.', 'error');
+    window.location.href = 'dashboard.html';
+  }
+
+  injectLayout('usuarios', 'Gestão de Usuários');
+
+  let todosUsuarios = [];
+  let userParaExcluir = null;
+  let modoEdicao = false;
+  let idEmEdicao = null;
+
+  async function carregarUsuarios() {
+    const res = await API.Usuarios.listar();
+    if (!res.ok) { toast('Erro ao carregar usuários.', 'error'); return; }
+
+    todosUsuarios = res.body.data;
+    renderTabela(todosUsuarios);
+  }
+
+  function renderTabela(lista) {
+    const tb = document.getElementById('tb-usuarios');
+    document.getElementById('count-usuarios').textContent = `${lista.length} usuários`;
+
+    if (lista.length === 0) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-secondary);">Nenhum usuário encontrado.</td></tr>';
+      return;
+    }
+
+    const papelLabel = {
+      'admin': '<span class="badge badge-gray">Admin</span>',
+      'gerente': '<span class="badge badge-blue">Gerente</span>',
+      'operador': '<span class="badge" style="background:#f1f5f9;color:#475569;">Operador</span>'
+    };
+
+    tb.innerHTML = lista.map(u => {
+      const isMe = _me.id === u.id;
+      return `
+        <tr>
+          <td><span class="font-mono text-muted">#${u.id}</span></td>
+          <td>
+            <strong>${u.nome}</strong>
+            ${isMe ? '<span class="badge badge-blue" style="margin-left:8px;">Você</span>' : ''}
+          </td>
+          <td>${u.email}</td>
+          <td>${papelLabel[u.papel] || u.papel}</td>
+          <td>
+            <span class="badge ${u.ativo ? 'badge-green' : 'badge-red'}">
+              ${u.ativo ? 'Ativo' : 'Inativo'}
+            </span>
+          </td>
+          <td class="text-muted text-sm">${formatDate(u.criado_em)}</td>
+          <td style="text-align:center;">
+            <div class="flex-center gap-8" style="justify-content:center;">
+              <button class="btn btn-secondary btn-sm" onclick="abrirEdicao(${u.id})">✏️</button>
+              ${!isMe && u.ativo ? `<button class="btn btn-danger btn-sm" onclick="abrirExclusao(${u.id}, '${u.nome}')">🗑️</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  document.querySelector('button[onclick="openModal(\'modal-usuario\')"]').addEventListener('click', () => {
+    modoEdicao = false;
+    idEmEdicao = null;
+    document.getElementById('modal-user-title').textContent = 'Novo Usuário';
+    document.getElementById('user-nome').value = '';
+    document.getElementById('user-email').value = '';
+    document.getElementById('user-senha').value = '';
+    document.getElementById('user-papel').value = 'operador';
+    
+    document.getElementById('modal-user-email-group').style.display = 'block';
+    document.getElementById('user-senha-label').innerHTML = 'Senha <span style="color:var(--danger)">*</span>';
+    document.getElementById('modal-user-ativo-group').style.display = 'none';
+  });
+
+  function abrirEdicao(id) {
+    const u = todosUsuarios.find(x => x.id === id);
+    if (!u) return;
+
+    modoEdicao = true;
+    idEmEdicao = id;
+
+    document.getElementById('modal-user-title').textContent = `Editar — ${u.nome}`;
+    document.getElementById('user-nome').value = u.nome;
+    document.getElementById('user-papel').value = u.papel;
+    document.getElementById('user-senha').value = '';
+    
+    document.getElementById('modal-user-email-group').style.display = 'none'; // Email é imutável
+    document.getElementById('user-senha-label').textContent = 'Nova Senha (opcional)';
+    
+    document.getElementById('modal-user-ativo-group').style.display = 'block';
+    document.getElementById('user-ativo').checked = !!u.ativo;
+
+    if (id === _me.id) {
+        document.getElementById('user-papel').disabled = true; // não pode mudar o próprio papel
+        document.getElementById('user-ativo').disabled = true; // não pode se desativar
+    } else {
+        document.getElementById('user-papel').disabled = false;
+        document.getElementById('user-ativo').disabled = false;
+    }
+
+    openModal('modal-usuario');
+  }
+
+  async function salvarUsuario() {
+    const btn = document.getElementById('btn-salvar-user');
+
+    const nome  = document.getElementById('user-nome').value.trim();
+    const papel = document.getElementById('user-papel').value;
+    const senha = document.getElementById('user-senha').value;
+
+    if (!nome) { toast('O campo nome é obrigatório.', 'warning'); return; }
+
+    setLoading(btn, true);
+    let res;
+
+    if (modoEdicao) {
+      const payload = { nome, papel, ativo: document.getElementById('user-ativo').checked ? 1 : 0 };
+      if (senha) payload.senha = senha;
+      if (idEmEdicao === _me.id) {
+          delete payload.papel;
+          delete payload.ativo;
+      }
+      res = await API.Usuarios.editar(idEmEdicao, payload);
+    } else {
+      const email = document.getElementById('user-email').value.trim();
+      if (!email || !senha) { 
+        toast('E-mail e senha são obrigatórios para novo usuário.', 'warning'); 
+        setLoading(btn, false); 
+        return; 
+      }
+      res = await API.Usuarios.criar({ nome, email, senha, papel });
+    }
+
+    setLoading(btn, false);
+
+    if (res.ok) {
+      toast(res.body.message, 'success');
+      closeModal('modal-usuario');
+      carregarUsuarios();
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+
+  function abrirExclusao(id, nome) {
+    userParaExcluir = id;
+    document.getElementById('excluir-user-nome').textContent = nome;
+    openModal('modal-excluir');
+  }
+
+  async function confirmarDesativacao() {
+    if (!userParaExcluir) return;
+    const btn = document.getElementById('btn-confirmar-excluir');
+    setLoading(btn, true);
+
+    const res = await API.Usuarios.desativar(userParaExcluir);
+    setLoading(btn, false);
+
+    if (res.ok) {
+      toast('Usuário desativado com sucesso.', 'success');
+      closeModal('modal-excluir');
+      carregarUsuarios();
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+
+  carregarUsuarios();
+</script>
+
+</body>
+</html>

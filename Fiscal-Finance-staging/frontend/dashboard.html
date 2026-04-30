@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- Conteúdo interno (sidebar será injetada pelo sidebar.js) -->
+<div class="stat-grid" id="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total de Produtos</div>
+    <div class="stat-value blue" id="stat-produtos">—</div>
+    <div class="stat-sub">cadastrados no sistema</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Receitas (vendas)</div>
+    <div class="stat-value green" id="stat-receitas">—</div>
+    <div class="stat-sub">acumulado no caixa</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Despesas</div>
+    <div class="stat-value red" id="stat-despesas">—</div>
+    <div class="stat-sub">compras + despesas manuais</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Saldo Líquido</div>
+    <div class="stat-value" id="stat-saldo">—</div>
+    <div class="stat-sub">resultado atual do caixa</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="mt-8">
+  <!-- Produtos com baixo estoque -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚠️ Produtos com Estoque Baixo</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="table-wrapper" style="border:none;border-radius:0;">
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Produto</th>
+              <th>Estoque</th>
+            </tr>
+          </thead>
+          <tbody id="tb-estoque-baixo">
+            <tr><td colspan="3" style="text-align:center;padding:28px;color:var(--text-secondary);">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Atalhos rápidos -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🚀 Acesso Rápido</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+      <a href="produtos.html" class="btn btn-secondary" style="justify-content:flex-start;gap:10px;">
+        <span>📦</span> Cadastrar novo produto
+      </a>
+      <a href="estoque.html" class="btn btn-secondary" style="justify-content:flex-start;gap:10px;">
+        <span>🏭</span> Movimentar estoque
+      </a>
+      <a href="notas.html" class="btn btn-secondary" style="justify-content:flex-start;gap:10px;">
+        <span>📄</span> Emitir nota fiscal
+      </a>
+      <a href="caixa.html" class="btn btn-secondary" style="justify-content:flex-start;gap:10px;">
+        <span>💰</span> Ver extrato do caixa
+      </a>
+      <a href="http://localhost:5000/docs" target="_blank" class="btn btn-secondary" style="justify-content:flex-start;gap:10px;">
+        <span>📖</span> Swagger — Documentação da API
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  injectLayout('dashboard', 'Dashboard');
+
+  async function carregarDashboard() {
+    // Saldo do caixa
+    const resCaixa = await API.Caixa.saldo();
+    if (resCaixa.ok) {
+      const d = resCaixa.body.data;
+      document.getElementById('stat-receitas').textContent = formatBRL(d.total_entradas);
+      document.getElementById('stat-despesas').textContent = formatBRL(d.total_despesas);
+      const saldoEl = document.getElementById('stat-saldo');
+      saldoEl.textContent = formatBRL(d.saldo_liquido);
+      saldoEl.className = 'stat-value ' + (d.saldo_liquido >= 0 ? 'green' : 'red');
+    }
+
+    // Produtos e estoque baixo
+    const resProd = await API.Produtos.listar();
+    if (resProd.ok) {
+      const lista = resProd.body.data;
+      document.getElementById('stat-produtos').textContent = lista.length;
+
+      const baixo = lista.filter(p => (p.saldo_estoque || 0) <= 5);
+      const tb = document.getElementById('tb-estoque-baixo');
+
+      if (baixo.length === 0) {
+        tb.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:28px;color:var(--text-secondary);">✅ Todos os estoques ok</td></tr>';
+      } else {
+        tb.innerHTML = baixo.map(p => `
+          <tr>
+            <td><span class="font-mono">${p.sku}</span></td>
+            <td>${p.nome}</td>
+            <td>
+              <span class="badge ${p.saldo_estoque <= 0 ? 'badge-red' : 'badge-yellow'}">
+                ${p.saldo_estoque} un.
+              </span>
+            </td>
+          </tr>
+        `).join('');
+      }
+    }
+  }
+
+  carregarDashboard();
+</script>
+
+</body>
+</html>

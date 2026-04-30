@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estoque — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="flex-between mb-24">
+  <div>
+    <h2 style="font-size:18px;font-weight:700;">Controle de Estoque</h2>
+    <p class="text-muted text-sm mt-4">Consulte o saldo atual de todos os produtos</p>
+  </div>
+  <div class="flex-center gap-8">
+    <button class="btn btn-primary" onclick="abrirModalEntrada()" data-roles="admin,gerente">+ Registrar Entrada</button>
+    <button class="btn btn-secondary" onclick="carregarEstoque()">🔄 Atualizar</button>
+  </div>
+</div>
+
+<!-- ─── Cards de resumo ──────────────────────────────────────── -->
+<div class="stat-grid mb-24" style="grid-template-columns:repeat(3,1fr);">
+  <div class="stat-card">
+    <div class="stat-label">Total de SKUs</div>
+    <div class="stat-value blue" id="est-total-skus">—</div>
+    <div class="stat-sub">produtos distintos</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Produtos sem estoque</div>
+    <div class="stat-value red" id="est-sem-estoque">—</div>
+    <div class="stat-sub">saldo = 0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Produtos com estoque baixo</div>
+    <div class="stat-value" style="color:var(--warning);" id="est-baixo">—</div>
+    <div class="stat-sub">saldo ≤ 5 unidades</div>
+  </div>
+</div>
+
+<!-- ─── Tabela de estoque ────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">🏭 Saldo por Produto</span>
+    <div class="flex-center gap-8">
+      <input
+        id="input-busca-est"
+        type="text"
+        class="form-control"
+        placeholder="Filtrar por SKU ou nome..."
+        style="max-width:260px;font-size:13px;padding:7px 12px;"
+        oninput="filtrarEstoque()"
+      />
+    </div>
+  </div>
+  <div class="table-wrapper" style="border:none;border-radius:0 0 var(--radius) var(--radius);">
+    <table>
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Nome</th>
+          <th>Preço Base</th>
+          <th>Alíquota</th>
+          <th>Saldo em Estoque</th>
+          <th>Valor em Estoque</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tb-estoque">
+        <tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-secondary);">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─── Info sobre movimentações ────────────────────────────── -->
+<div class="card mt-16" style="border-left:4px solid var(--accent);">
+  <div class="card-body" style="padding:14px 20px;">
+    <p class="text-sm" style="color:var(--text-secondary);">
+      💡 <strong>Entradas de estoque</strong> podem ser registradas manualmente aqui.
+      <strong>Saídas</strong> são geradas automaticamente ao confirmar uma nota fiscal de venda.
+    </p>
+  </div>
+</div>
+
+<!-- ─── Modal: Registrar entrada de estoque ───────────────────── -->
+<div class="modal-overlay" id="modal-entrada">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Registrar Entrada de Estoque</span>
+      <span class="modal-close" onclick="closeModal('modal-entrada')">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="ent-sku">Produto <span style="color:var(--danger)">*</span></label>
+        <select id="ent-sku" class="form-control">
+          <option value="">Selecione um produto...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="ent-qtd">Quantidade <span style="color:var(--danger)">*</span></label>
+        <input id="ent-qtd" type="number" min="1" class="form-control" placeholder="10" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="ent-motivo">Motivo <span style="color:var(--danger)">*</span></label>
+        <input id="ent-motivo" type="text" class="form-control" placeholder="Ex: Compra do fornecedor XPTO" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-entrada')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-entrada" onclick="salvarEntrada()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  injectLayout('estoque', 'Controle de Estoque');
+
+  let todosEstoque = [];
+
+  async function carregarEstoque() {
+    const res = await API.Estoque.listar();
+    if (!res.ok) { toast('Erro ao carregar estoque.', 'error'); return; }
+
+    todosEstoque = res.body.data;
+
+    const semEstoque = todosEstoque.filter(p => (p.saldo_estoque || 0) <= 0).length;
+    const baixo      = todosEstoque.filter(p => p.saldo_estoque > 0 && p.saldo_estoque <= 5).length;
+
+    document.getElementById('est-total-skus').textContent  = todosEstoque.length;
+    document.getElementById('est-sem-estoque').textContent = semEstoque;
+    document.getElementById('est-baixo').textContent       = baixo;
+
+    renderEstoque(todosEstoque);
+  }
+
+  function renderEstoque(lista) {
+    const tb = document.getElementById('tb-estoque');
+
+    if (lista.length === 0) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-secondary);">Nenhum produto encontrado.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = lista.map(p => {
+      const aliq   = p.aliquota_imposto || p.aliquota || 0;
+      const saldo  = p.saldo_estoque ?? 0;
+      const valor  = saldo * p.preco_base;
+
+      let badge, statusText;
+      if (saldo <= 0)      { badge = 'badge-red';    statusText = 'Sem estoque'; }
+      else if (saldo <= 5) { badge = 'badge-yellow'; statusText = 'Estoque baixo'; }
+      else                  { badge = 'badge-green';  statusText = 'Normal'; }
+
+      return `
+        <tr>
+          <td><span class="font-mono">${p.sku}</span></td>
+          <td><strong>${p.nome}</strong></td>
+          <td>${formatBRL(p.preco_base)}</td>
+          <td>${(aliq * 100).toFixed(1)}%</td>
+          <td style="font-weight:600;font-size:15px;">${saldo}</td>
+          <td>${formatBRL(valor)}</td>
+          <td><span class="badge ${badge}">${statusText}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function filtrarEstoque() {
+    const termo = document.getElementById('input-busca-est').value.toLowerCase();
+    const filtrado = todosEstoque.filter(p =>
+      p.nome.toLowerCase().includes(termo) || p.sku.toLowerCase().includes(termo)
+    );
+    renderEstoque(filtrado);
+  }
+
+  function abrirModalEntrada() {
+    const select = document.getElementById('ent-sku');
+    select.innerHTML = '<option value="">Selecione um produto...</option>' + 
+      todosEstoque.map(p => `<option value="${p.sku}">${p.nome} (${p.sku})</option>`).join('');
+    
+    document.getElementById('ent-qtd').value = '';
+    document.getElementById('ent-motivo').value = 'Entrada manual de estoque';
+    openModal('modal-entrada');
+  }
+
+  async function salvarEntrada() {
+    const btn = document.getElementById('btn-salvar-entrada');
+    const sku = document.getElementById('ent-sku').value;
+    const qtd = parseInt(document.getElementById('ent-qtd').value);
+    const motivo = document.getElementById('ent-motivo').value.trim();
+
+    if (!sku) { toast('Selecione um produto.', 'warning'); return; }
+    if (!qtd || qtd <= 0) { toast('Quantidade inválida.', 'warning'); return; }
+    if (!motivo) { toast('Informe o motivo.', 'warning'); return; }
+
+    setLoading(btn, true);
+    const res = await API.Estoque.registrarEntrada(sku, qtd, motivo);
+    setLoading(btn, false);
+
+    if (res.ok) {
+      toast('Entrada registrada com sucesso!', 'success');
+      closeModal('modal-entrada');
+      carregarEstoque();
+    } else {
+      toast(res.body.message, 'error');
+    }
+  }
+
+  carregarEstoque();
+  applyRBAC();
+</script>
+
+</body>
+</html>

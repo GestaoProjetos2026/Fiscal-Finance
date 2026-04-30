@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notas Fiscais — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="flex-between mb-24">
+  <div>
+    <h2 style="font-size:18px;font-weight:700;">Notas Fiscais</h2>
+    <p class="text-muted text-sm mt-4">Consulte notas emitidas por número</p>
+  </div>
+  <a href="fiscal.html" class="btn btn-primary">+ Emitir Nova Nota</a>
+</div>
+
+<!-- ─── Busca por número ─────────────────────────────────────── -->
+<div class="card mb-24">
+  <div class="card-header">
+    <span class="card-title">🔍 Buscar Nota por Número</span>
+  </div>
+  <div class="card-body">
+    <div class="flex-center gap-8">
+      <input
+        id="input-num-nota"
+        type="text"
+        class="form-control"
+        placeholder="Ex: NF-2026-001"
+        style="max-width:320px;"
+        onkeydown="if(event.key==='Enter') buscarNota()"
+      />
+      <button class="btn btn-primary" id="btn-buscar-nota" onclick="buscarNota()">Buscar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Resultado da nota ────────────────────────────────────── -->
+<div id="nota-resultado" class="hidden">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <span class="card-title" id="nota-numero-label">—</span>
+        <span class="text-sm text-muted mt-4" id="nota-desc-label"></span>
+      </div>
+      <div class="flex-center gap-8">
+        <span class="badge" id="nota-status-badge">—</span>
+        <span class="text-sm text-muted" id="nota-data-label"></span>
+      </div>
+    </div>
+
+    <!-- Itens da nota -->
+    <div class="table-wrapper" style="border:none;border-radius:0;">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Produto</th>
+            <th>Qtd</th>
+            <th>Preço Unit.</th>
+            <th>Alíquota</th>
+            <th>Bruto</th>
+            <th>Imposto</th>
+            <th>Total Item</th>
+          </tr>
+        </thead>
+        <tbody id="tb-nota-itens"></tbody>
+      </table>
+    </div>
+
+    <!-- Totais da nota -->
+    <div class="card-body" style="padding:16px 22px;">
+      <div class="totals-box">
+        <div class="totals-row">
+          <span class="text-muted">Total de Itens (linhas)</span>
+          <span id="nota-num-itens">—</span>
+        </div>
+        <div class="totals-row total-final">
+          <span>Total Final da Nota</span>
+          <span id="nota-total-final">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Estado inicial ───────────────────────────────────────── -->
+<div id="nota-inicial">
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:60px 20px;">
+      <div style="font-size:48px;margin-bottom:16px;opacity:.4;">📄</div>
+      <p style="font-size:15px;color:var(--text-secondary);">
+        Informe o número de uma nota acima para consultá-la.
+      </p>
+      <p class="text-sm text-muted mt-8">
+        Para emitir uma nova nota, use a página <a href="fiscal.html" style="color:var(--accent);">Fiscal</a>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Not found ────────────────────────────────────────────── -->
+<div id="nota-nao-encontrada" class="hidden">
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:48px 20px;">
+      <div style="font-size:40px;margin-bottom:12px;">❌</div>
+      <p style="color:var(--text-secondary);" id="nota-nao-enc-msg">Nota não encontrada.</p>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  injectLayout('notas', 'Notas Fiscais');
+
+  async function buscarNota() {
+    const numero = document.getElementById('input-num-nota').value.trim();
+    if (!numero) { toast('Informe o número da nota.', 'warning'); return; }
+
+    const btn = document.getElementById('btn-buscar-nota');
+    setLoading(btn, true);
+
+    const res = await API.Notas.buscar(numero);
+    setLoading(btn, false);
+
+    // Esconde todos os estados
+    document.getElementById('nota-resultado').classList.add('hidden');
+    document.getElementById('nota-inicial').style.display = 'none';
+    document.getElementById('nota-nao-encontrada').classList.add('hidden');
+
+    if (!res.ok) {
+      document.getElementById('nota-nao-enc-msg').textContent = res.body.message;
+      document.getElementById('nota-nao-encontrada').classList.remove('hidden');
+      return;
+    }
+
+    const { nota, itens, totais } = res.body.data;
+
+    // Cabeçalho
+    document.getElementById('nota-numero-label').textContent = `Nota Nº ${nota.numero_nota}`;
+    document.getElementById('nota-desc-label').textContent   = nota.descricao || '';
+    document.getElementById('nota-data-label').textContent   = `Emitida em: ${formatDate(nota.data_criacao)}`;
+
+    const statusBadge = document.getElementById('nota-status-badge');
+    statusBadge.textContent  = nota.status === 'emitida' ? '✅ Emitida' : nota.status;
+    statusBadge.className    = `badge ${nota.status === 'emitida' ? 'badge-green' : 'badge-yellow'}`;
+
+    // Itens
+    const tb = document.getElementById('tb-nota-itens');
+    if (itens.length === 0) {
+      tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-secondary);">Nenhum item nesta nota.</td></tr>';
+    } else {
+      tb.innerHTML = itens.map(i => `
+        <tr>
+          <td><span class="font-mono">${i.sku}</span></td>
+          <td><strong>${i.nome || '—'}</strong></td>
+          <td>${i.quantidade}</td>
+          <td>${formatBRL(i.preco_base)}</td>
+          <td>${(i.aliquota * 100).toFixed(1)}%</td>
+          <td>${formatBRL(i.valor_bruto)}</td>
+          <td style="color:var(--danger);">${formatBRL(i.valor_imposto)}</td>
+          <td style="font-weight:600;">${formatBRL(i.valor_total)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Totais
+    document.getElementById('nota-num-itens').textContent    = totais.num_itens;
+    document.getElementById('nota-total-final').textContent  = formatBRL(totais.total_final);
+
+    document.getElementById('nota-resultado').classList.remove('hidden');
+  }
+</script>
+
+</body>
+</html>
