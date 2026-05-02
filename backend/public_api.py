@@ -72,10 +72,10 @@ def produto_publico(sku):
             p.sku,
             p.nome,
             p.preco_base,
-            p.aliquota_imposto,
+            COALESCE(p.aliquota, p.aliquota_imposto, 0) AS aliquota_imposto,
             COALESCE(
                 (SELECT SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE -quantidade END)
-                 FROM estoque WHERE sku = p.sku),
+                 FROM estoque_mov WHERE sku = p.sku),
             0) AS saldo_estoque
         FROM produtos p
         WHERE p.sku = ?
@@ -142,8 +142,8 @@ def estoque_publico(sku):
     cursor.execute("""
         SELECT
             COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE -quantidade END), 0) AS saldo_atual,
-            MAX(data_movimentacao) AS ultima_movimentacao
-        FROM estoque
+            MAX(data_mov) AS ultima_movimentacao
+        FROM estoque_mov
         WHERE sku = ?
     """, (sku,))
     estoque = cursor.fetchone()
@@ -192,8 +192,9 @@ def resumo_caixa_publico():
     # Receitas: vendas (saídas de estoque × preço × 1.18 inclui imposto)
     cursor.execute("""
         SELECT COALESCE(SUM(e.quantidade * p.preco_base), 0)              AS receita_bruta,
-               COALESCE(SUM(e.quantidade * p.preco_base * p.aliquota_imposto), 0) AS total_impostos
-        FROM estoque e
+               COALESCE(SUM(e.quantidade * p.preco_base *
+                   COALESCE(p.aliquota, p.aliquota_imposto, 0)), 0)       AS total_impostos
+        FROM estoque_mov e
         JOIN produtos p ON e.sku = p.sku
         WHERE e.tipo = 'saida'
     """)
@@ -202,7 +203,7 @@ def resumo_caixa_publico():
     # Despesas: compras (entradas de estoque) + despesas manuais
     cursor.execute("""
         SELECT COALESCE(SUM(e.quantidade * p.preco_base), 0) AS custo_compras
-        FROM estoque e
+        FROM estoque_mov e
         JOIN produtos p ON e.sku = p.sku
         WHERE e.tipo = 'entrada'
     """)

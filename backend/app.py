@@ -1,7 +1,6 @@
 # src/app.py
 # Ponto de entrada da API REST — Squad FISC
 # Para rodar: python app.py (dentro da pasta src/)
-# MOD-S4-02 — RBAC implementado em todos os módulos
 
 import json
 import os
@@ -14,8 +13,7 @@ from cashflow   import cashflow_bp
 from invoice    import invoice_bp
 from auth       import auth_bp, init_db_auth
 from public_api import public_bp
-from database   import init_db
-from estoque    import estoque_bp
+from stock      import stock_bp   # FISC-19: entrada de estoque
 
 app = Flask(__name__)
 
@@ -51,7 +49,7 @@ app.register_blueprint(auth_bp,     url_prefix="/v1/fisc")
 app.register_blueprint(products_bp, url_prefix="/v1/fisc")
 app.register_blueprint(cashflow_bp, url_prefix="/v1/fisc")
 app.register_blueprint(invoice_bp,  url_prefix="/v1/fisc")
-app.register_blueprint(estoque_bp,  url_prefix="/v1/fisc")
+app.register_blueprint(stock_bp,    url_prefix="/v1/fisc")   # FISC-19
 app.register_blueprint(public_bp,   url_prefix="/v1")      # prefixo /v1 (public já inclui /public/fisc)
 
 
@@ -90,7 +88,6 @@ def erro_interno(e):
 
 
 if __name__ == "__main__":
-    init_db()       # garante tabelas + migracoes de schema (produtos, estoque_mov, etc.)
     init_db_auth()  # garante tabela usuarios + seed admin
 
     print("=" * 65)
@@ -101,13 +98,6 @@ if __name__ == "__main__":
     print("   POST   /v1/fisc/auth/login")
     print("   GET    /v1/fisc/auth/me           [requer JWT]")
     print("   POST   /v1/fisc/auth/logout       [requer JWT]")
-    print("   GET    /v1/fisc/auth/permissions  [requer JWT]")
-    print()
-    print("  Gestão de Usuários (FISC-MOD2-05 — admin only):")
-    print("   GET    /v1/fisc/auth/users")
-    print("   POST   /v1/fisc/auth/users")
-    print("   PUT    /v1/fisc/auth/users/<id>")
-    print("   DELETE /v1/fisc/auth/users/<id>")
     print()
     print("  Produtos:")
     print("   POST   /v1/fisc/products")
@@ -120,6 +110,9 @@ if __name__ == "__main__":
     print("   POST   /v1/fisc/invoice/intent")
     print("   POST   /v1/fisc/invoice/confirm")
     print("   GET    /v1/fisc/invoice/<numero>")
+    print()
+    print("  Estoque (FISC-19):")
+    print("   POST   /v1/fisc/stock/entry")
     print()
     print("  Caixa:")
     print("   GET    /v1/fisc/cashflow/balance")

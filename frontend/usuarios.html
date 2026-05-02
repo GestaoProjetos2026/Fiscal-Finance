@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão de Usuários — Fiscal Finance</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header" style="justify-content: space-between; display: flex; align-items: center;">
+    <span class="card-title">Usuários Cadastrados</span>
+    <button class="btn btn-primary" onclick="openModalUsuario()">+ Novo Usuário</button>
+  </div>
+  
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrapper" style="border:none; border-radius:0;">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Email</th>
+            <th>Papel</th>
+            <th>Criado em</th>
+            <th style="width: 120px; text-align: center;">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tb-usuarios">
+          <tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text-secondary);">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Criar/Editar Usuário -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-title">Novo Usuário</h3>
+      <button class="modal-close" onclick="closeModal('modal-usuario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-usuario" onsubmit="salvarUsuario(event)">
+        <input type="hidden" id="usr-id" />
+        
+        <div class="form-group" id="grp-nome">
+          <label class="form-label">Nome</label>
+          <input type="text" id="usr-nome" class="form-control" placeholder="João Silva" required />
+        </div>
+        
+        <div class="form-group" id="grp-email">
+          <label class="form-label">Email</label>
+          <input type="email" id="usr-email" class="form-control" placeholder="joao@empresa.com" required />
+        </div>
+        
+        <div class="form-group" id="grp-senha">
+          <label class="form-label">Senha</label>
+          <input type="password" id="usr-senha" class="form-control" placeholder="Mínimo 6 caracteres" />
+          <small class="form-help" id="help-senha">Obrigatório para novos usuários.</small>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Papel (Nível de Acesso)</label>
+          <select id="usr-papel" class="form-control" required>
+            <option value="usuario">Usuário (Leitura e Vendas)</option>
+            <option value="gerente">Gerente (Gestão de Produtos e Caixa)</option>
+            <option value="admin">Administrador (Acesso Total)</option>
+          </select>
+        </div>
+        
+        <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-usuario')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-salvar-usuario">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('not auth');
+  
+  // Proteção extra: se não for admin, redireciona pro dashboard
+  const currentUser = getUser();
+  if (!currentUser || currentUser.papel !== 'admin') {
+    window.location.href = 'dashboard.html';
+    throw new Error('Sem permissão de administrador.');
+  }
+  
+  injectLayout('usuarios', 'Gestão de Usuários');
+
+  let editandoId = null;
+
+  async function carregarUsuarios() {
+    const res = await API.Usuarios.listar();
+    const tb = document.getElementById('tb-usuarios');
+    
+    if (res.ok) {
+      const lista = res.body.data;
+      if (lista.length === 0) {
+        tb.innerHTML = emptyRow(6, 'Nenhum usuário cadastrado.');
+        return;
+      }
+      
+      tb.innerHTML = lista.map(u => {
+        let roleBadge = '';
+        if (u.papel === 'admin') roleBadge = '<span class="badge badge-green">Admin</span>';
+        else if (u.papel === 'gerente') roleBadge = '<span class="badge badge-yellow">Gerente</span>';
+        else roleBadge = '<span class="badge badge-blue">Usuário</span>';
+        
+        const isSelf = u.id === currentUser.id;
+        
+        return `
+          <tr>
+            <td style="color:var(--text-secondary)">#${u.id}</td>
+            <td>${u.nome} ${isSelf ? '(Você)' : ''}</td>
+            <td>${u.email}</td>
+            <td>${roleBadge}</td>
+            <td style="color:var(--text-secondary)">${formatDate(u.criado_em)}</td>
+            <td style="text-align: center;">
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; border:none;" onclick="editarPapel(${u.id}, '${u.nome}', '${u.papel}')" title="Alterar Papel">✏️</button>
+              ${!isSelf ? `<button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; border:none; color: var(--danger-color);" onclick="excluirUsuario(${u.id}, '${u.nome}')" title="Excluir">🗑️</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tb.innerHTML = emptyRow(6, 'Erro ao carregar usuários.');
+      toast(res.body?.message || 'Erro ao carregar usuários.', 'error');
+    }
+  }
+
+  function openModalUsuario() {
+    editandoId = null;
+    document.getElementById('modal-title').textContent = 'Novo Usuário';
+    document.getElementById('form-usuario').reset();
+    
+    // Mostra campos de nome, email e senha para criação
+    document.getElementById('grp-nome').style.display = 'block';
+    document.getElementById('grp-email').style.display = 'block';
+    document.getElementById('grp-senha').style.display = 'block';
+    document.getElementById('usr-nome').required = true;
+    document.getElementById('usr-email').required = true;
+    document.getElementById('usr-senha').required = true;
+    
+    openModal('modal-usuario');
+  }
+
+  function editarPapel(id, nome, papelAtual) {
+    editandoId = id;
+    document.getElementById('modal-title').textContent = `Editar Papel: ${nome}`;
+    document.getElementById('form-usuario').reset();
+    document.getElementById('usr-papel').value = papelAtual;
+    
+    // Esconde campos de nome, email e senha (edição só permite alterar papel por enquanto)
+    document.getElementById('grp-nome').style.display = 'none';
+    document.getElementById('grp-email').style.display = 'none';
+    document.getElementById('grp-senha').style.display = 'none';
+    document.getElementById('usr-nome').required = false;
+    document.getElementById('usr-email').required = false;
+    document.getElementById('usr-senha').required = false;
+    
+    openModal('modal-usuario');
+  }
+
+  async function salvarUsuario(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-salvar-usuario');
+    setLoading(btn, true);
+
+    try {
+      let res;
+      if (editandoId) {
+        // Atualizar papel
+        const papel = document.getElementById('usr-papel').value;
+        res = await API.Usuarios.editarPapel(editandoId, papel);
+      } else {
+        // Criar usuário
+        const dados = {
+          nome: document.getElementById('usr-nome').value,
+          email: document.getElementById('usr-email').value,
+          senha: document.getElementById('usr-senha').value,
+          papel: document.getElementById('usr-papel').value
+        };
+        res = await API.Usuarios.criar(dados);
+      }
+
+      if (res.ok) {
+        toast(res.body.message, 'success');
+        closeModal('modal-usuario');
+        carregarUsuarios();
+      } else {
+        toast(res.body?.message || 'Erro ao salvar usuário.', 'error');
+      }
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function excluirUsuario(id, nome) {
+    if (!confirm(`Tem certeza que deseja excluir o usuário "${nome}"?\nEsta ação não pode ser desfeita.`)) return;
+    
+    const res = await API.Usuarios.remover(id);
+    if (res.ok) {
+      toast(res.body.message, 'success');
+      carregarUsuarios();
+    } else {
+      toast(res.body?.message || 'Erro ao excluir.', 'error');
+    }
+  }
+
+  // Inicialização
+  carregarUsuarios();
+</script>
+
+</body>
+</html>

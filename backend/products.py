@@ -1,8 +1,7 @@
 # src/products.py
-# FISC-MOD2-01 — RBAC em produtos
 from flask import Blueprint, request, jsonify
 from database import get_connection
-from auth import requer_papel
+from auth import requer_auth, requer_papel
 
 # Um Blueprint é como uma "seção" da API, agrupa rotas relacionadas
 products_bp = Blueprint("products", __name__)
@@ -12,7 +11,7 @@ products_bp = Blueprint("products", __name__)
 # TASK #210 — GET /products (listar todos os produtos)
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/products", methods=["GET"])
-@requer_papel("produtos.ler")
+@requer_auth
 def listar_produtos():
     """
     Retorna a lista de todos os produtos cadastrados, incluindo o saldo de estoque.
@@ -24,14 +23,12 @@ def listar_produtos():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # JOIN com subquery que calcula saldo: SUM(entradas) - SUM(saidas)
+    # Usa coluna produtos.estoque como saldo (mantida sincronizada por invoice/confirm e stock/entry)
+    # CORREÇÃO: a query antiga usava JOIN com tabela 'estoque' (legada/vazia); agora usa produtos.estoque
     query = """
         SELECT
             p.*,
-            COALESCE(
-                (SELECT SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE -quantidade END)
-                 FROM estoque WHERE sku = p.sku),
-            0) AS saldo_estoque
+            p.estoque AS saldo_estoque
         FROM produtos p
     """
 
@@ -56,7 +53,7 @@ def listar_produtos():
 # TASK #211 — GET /products/{id} (buscar produto por SKU)
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/products/<string:sku>", methods=["GET"])
-@requer_papel("produtos.ler")
+@requer_auth
 def buscar_produto(sku):
     """
     Retorna um único produto pelo SKU, incluindo o saldo de estoque.
@@ -66,14 +63,12 @@ def buscar_produto(sku):
     conn = get_connection()
     cursor = conn.cursor()
 
-    # JOIN com subquery que calcula saldo: SUM(entradas) - SUM(saidas)
+    # Usa coluna produtos.estoque como saldo (mantida sincronizada por invoice/confirm e stock/entry)
+    # CORREÇÃO: a query antiga usava JOIN com tabela 'estoque' (legada/vazia); agora usa produtos.estoque
     cursor.execute("""
         SELECT
             p.*,
-            COALESCE(
-                (SELECT SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE -quantidade END)
-                 FROM estoque WHERE sku = p.sku),
-            0) AS saldo_estoque
+            p.estoque AS saldo_estoque
         FROM produtos p
         WHERE p.sku = ?
     """, (sku,))
@@ -98,7 +93,7 @@ def buscar_produto(sku):
 # TASK #209 + #214 — POST /products (criar produto + validar SKU único)
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/products", methods=["POST"])
-@requer_papel("produtos.criar")
+@requer_papel(["admin", "gerente"])
 def criar_produto():
     """
     Cria um novo produto.
@@ -155,19 +150,11 @@ def criar_produto():
         }), 409
 
     # Tudo válido: salvar no banco
-    try:
-        cursor.execute(
-            "INSERT INTO produtos (sku, nome, preco_base, aliquota_imposto) VALUES (?, ?, ?, ?)",
-            (sku, nome, preco, aliquota)
-        )
-        conn.commit()
-    except Exception as e:
-        conn.close()
-        return jsonify({
-            "status": "error",
-            "data": None,
-            "message": f"Erro ao salvar produto no banco de dados: {str(e)}"
-        }), 500
+    cursor.execute(
+        "INSERT INTO produtos (sku, nome, preco_base, aliquota) VALUES (?, ?, ?, ?)",
+        (sku, nome, preco, aliquota)
+    )
+    conn.commit()
     conn.close()
 
     return jsonify({
@@ -186,7 +173,7 @@ def criar_produto():
 # TASK #212 — PUT /products/{id} (editar produto)
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/products/<string:sku>", methods=["PUT"])
-@requer_papel("produtos.editar")
+@requer_papel(["admin", "gerente"])
 def editar_produto(sku):
     """
     Atualiza os dados de um produto existente.
@@ -226,8 +213,8 @@ def editar_produto(sku):
     produto_dict  = dict(produto_atual)
     novo_nome     = dados.get("nome",             produto_dict["nome"]).strip()
     novo_preco    = dados.get("preco_base",       produto_dict["preco_base"])
-    # aceita 'aliquota_imposto' (frontend) ou direto
-    nova_aliquota = dados.get("aliquota_imposto", produto_dict["aliquota_imposto"])
+    # aceita 'aliquota_imposto' (frontend) ou 'aliquota' (banco direto)
+    nova_aliquota = dados.get("aliquota_imposto", dados.get("aliquota", produto_dict["aliquota"]))
 
     # Validações nos novos valores
     if not novo_nome:
@@ -244,7 +231,7 @@ def editar_produto(sku):
                         "message": "Campo 'aliquota_imposto' deve ser entre 0 e 1."}), 400
 
     cursor.execute(
-        "UPDATE produtos SET nome = ?, preco_base = ?, aliquota_imposto = ? WHERE sku = ?",
+        "UPDATE produtos SET nome = ?, preco_base = ?, aliquota = ? WHERE sku = ?",
         (novo_nome, novo_preco, nova_aliquota, sku)
     )
     conn.commit()
@@ -266,7 +253,7 @@ def editar_produto(sku):
 # TASK #213 — DELETE /products/{id} (remover produto)
 # ─────────────────────────────────────────────────────────
 @products_bp.route("/products/<string:sku>", methods=["DELETE"])
-@requer_papel("produtos.deletar")
+@requer_papel(["admin"])
 def remover_produto(sku):
     """
     Remove um produto pelo SKU.

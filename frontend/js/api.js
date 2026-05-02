@@ -1,12 +1,11 @@
 // ============================================================
 // api.js — Camada de comunicação com a API Flask
 // Todas as chamadas HTTP do sistema passam por aqui
-// FISC-MOD2-05: adiciona Usuarios + tratamento de 401/403
 // ============================================================
 
 const API_BASE = 'http://localhost:5000/v1/fisc';
 
-// --- Token JWT (localStorage) --------------------------------
+// ─── Token JWT (localStorage) ────────────────────────────────
 function getToken() {
   return localStorage.getItem('fisc_token');
 }
@@ -29,7 +28,7 @@ function setUser(user) {
   localStorage.setItem('fisc_user', JSON.stringify(user));
 }
 
-// --- Fetch base com headers automaticos ----------------------
+// ─── Fetch base com headers automáticos ──────────────────────
 async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = {
@@ -38,40 +37,24 @@ async function apiFetch(path, options = {}) {
     ...(options.headers || {})
   };
 
-  let res, json;
-  try {
-    res  = await fetch(`${API_BASE}${path}`, { ...options, headers });
-    json = await res.json();
-  } catch (err) {
-    return {
-      ok: false,
-      status: 0,
-      body: { status: 'error', data: null, message: 'Sem conexao com o servidor. Verifique se a API esta rodando.' }
-    };
-  }
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers
+  });
 
-  // 401: token invalido ou expirado — limpa sessao e redireciona para login
-  if (res.status === 401) {
+  const json = await res.json();
+  
+  // Se o token estiver expirado ou for inválido, força o login
+  if (res.status === 401 && path !== '/auth/login') {
     clearToken();
-    const isLoginPage = window.location.pathname.endsWith('index.html')
-      || window.location.pathname === '/'
-      || window.location.pathname === '';
-    if (!isLoginPage) {
-      window.location.href = 'index.html';
-    }
-    return { ok: false, status: 401, body: json };
-  }
-
-  // 403: sem permissão (RBAC)
-  if (res.status === 403) {
-    if (window.toast) window.toast(json.message || 'Acesso negado.', 'error');
-    return { ok: false, status: 403, body: json };
+    window.location.href = 'index.html';
+    return { ok: false, status: res.status, body: json };
   }
 
   return { ok: res.ok, status: res.status, body: json };
 }
 
-// --- AUTH ----------------------------------------------------
+// ─── AUTH ─────────────────────────────────────────────────────
 const Auth = {
   async login(email, senha) {
     return apiFetch('/auth/login', {
@@ -89,7 +72,7 @@ const Auth = {
   }
 };
 
-// --- PRODUTOS ------------------------------------------------
+// ─── PRODUTOS ─────────────────────────────────────────────────
 const Produtos = {
   async listar(nome = '') {
     const q = nome ? `?nome=${encodeURIComponent(nome)}` : '';
@@ -117,8 +100,10 @@ const Produtos = {
   }
 };
 
-// --- ESTOQUE -------------------------------------------------
-// Saldo de estoque vem junto com os produtos (campo saldo_estoque)
+// ─── ESTOQUE ──────────────────────────────────────────────
+// Saldo via products (saldo_estoque = produtos.estoque)
+// Entradas: POST /stock/entry (FISC-19)
+// Saídas:   via invoice/confirm (baixa automática)
 const Estoque = {
   async listar() {
     return apiFetch('/products');
@@ -134,7 +119,7 @@ const Estoque = {
   }
 };
 
-// --- NOTA FISCAL ---------------------------------------------
+// ─── NOTA FISCAL ──────────────────────────────────────────────
 const Notas = {
   async calcularIntencao(itens) {
     return apiFetch('/invoice/intent', {
@@ -153,7 +138,7 @@ const Notas = {
   }
 };
 
-// --- CAIXA ---------------------------------------------------
+// ─── CAIXA ────────────────────────────────────────────────────
 const Caixa = {
   async saldo() {
     return apiFetch('/cashflow/balance');
@@ -171,35 +156,34 @@ const Caixa = {
   }
 };
 
-// --- USUARIOS (FISC-MOD2-05 — admin only) --------------------
+// ─── USUÁRIOS ─────────────────────────────────────────────────
 const Usuarios = {
   async listar() {
-    return apiFetch('/auth/users');
+    return apiFetch('/users');
   },
   async criar(dados) {
-    return apiFetch('/auth/users', {
+    return apiFetch('/users', {
       method: 'POST',
       body: JSON.stringify(dados)
     });
   },
-  async editar(id, dados) {
-    return apiFetch(`/auth/users/${id}`, {
+  async editarPapel(id, papel) {
+    return apiFetch(`/users/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(dados)
+      body: JSON.stringify({ papel })
     });
   },
-  async desativar(id) {
-    return apiFetch(`/auth/users/${id}`, { method: 'DELETE' });
-  },
-  async permissoes() {
-    return apiFetch('/auth/permissions');
+  async remover(id) {
+    return apiFetch(`/users/${id}`, {
+      method: 'DELETE'
+    });
   }
 };
 
-// --- Exporta globalmente -------------------------------------
+// ─── Exporta globalmente ──────────────────────────────────────
 window.API = { Auth, Produtos, Estoque, Notas, Caixa, Usuarios };
-window.getToken    = getToken;
-window.setToken    = setToken;
-window.clearToken  = clearToken;
-window.getUser     = getUser;
-window.setUser     = setUser;
+window.getToken = getToken;
+window.setToken = setToken;
+window.clearToken = clearToken;
+window.getUser = getUser;
+window.setUser = setUser;

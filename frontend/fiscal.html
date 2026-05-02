@@ -136,7 +136,7 @@
               <label class="form-label" for="fisc-desc-nota">Descrição</label>
               <input id="fisc-desc-nota" type="text" class="form-control" placeholder="Ex: Venda para cliente X" />
             </div>
-            <button class="btn btn-success btn-full" id="btn-confirmar-nota" onclick="confirmarNota()" data-roles="admin,gerente">
+            <button class="btn btn-success btn-full" id="btn-confirmar-nota" onclick="confirmarNota()">
               ✅ Confirmar e Emitir Nota
             </button>
           </div>
@@ -314,8 +314,6 @@
       toast(res.body.message, 'error');
     }
   }
-
-  applyRBAC();
 </script>
 
 </body>

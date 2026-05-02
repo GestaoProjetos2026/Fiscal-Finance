@@ -44,13 +44,13 @@ function injectLayout(pageId, pageTitle) {
           <span class="nav-icon">📄</span> Notas Fiscais
         </a>
 
-        <div class="nav-section-label" data-roles="admin">Ferramentas</div>
+        <div class="nav-section-label">Ferramentas</div>
 
-        <a class="nav-item" data-page="usuarios" href="usuarios.html" data-roles="admin">
+        <a class="nav-item" data-page="usuarios" href="usuarios.html" id="nav-usuarios" style="display:none;">
           <span class="nav-icon">👥</span> Gestão de Usuários
         </a>
 
-        <a class="nav-item" data-page="api-tester" href="api-tester.html" data-roles="admin">
+        <a class="nav-item" data-page="api-tester" href="api-tester.html" id="nav-api-tester" style="display:none;">
           <span class="nav-icon">🧪</span> API Tester
         </a>
       </nav>
@@ -99,9 +99,13 @@ function injectLayout(pageId, pageTitle) {
   // Preenche dados do user
   fillUserSidebar();
 
-  // Aplica RBAC na sidebar
-  if (typeof applyRBAC === 'function') {
-    applyRBAC();
+  // Mostra Ferramentas Administrativas somente para admin
+  const _u = getUser();
+  if (_u && _u.papel === 'admin') {
+    const navTester = document.getElementById('nav-api-tester');
+    if (navTester) navTester.style.display = '';
+    const navUsuarios = document.getElementById('nav-usuarios');
+    if (navUsuarios) navUsuarios.style.display = '';
   }
 
   // Relógio no topbar

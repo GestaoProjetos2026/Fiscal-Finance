@@ -112,20 +112,6 @@ function emptyRow(cols, msg = 'Nenhum registro encontrado.') {
   return `<tr><td colspan="${cols}" style="text-align:center;padding:36px;color:var(--text-secondary);">${msg}</td></tr>`;
 }
 
-// ─── RBAC: Oculta elementos sem permissão ─────────────────────
-function applyRBAC() {
-  const user = getUser();
-  if (!user) return;
-  const role = user.papel;
-
-  document.querySelectorAll('[data-roles]').forEach(el => {
-    const roles = el.getAttribute('data-roles').split(',');
-    if (!roles.includes(role)) {
-      el.style.display = 'none';
-    }
-  });
-}
-
 // Exporta globalmente
 window.toast = toast;
 window.openModal = openModal;
@@ -138,4 +124,3 @@ window.fillUserSidebar = fillUserSidebar;
 window.handleLogout = handleLogout;
 window.setActiveNav = setActiveNav;
 window.emptyRow = emptyRow;
-window.applyRBAC = applyRBAC;

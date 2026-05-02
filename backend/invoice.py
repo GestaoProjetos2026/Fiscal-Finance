@@ -3,13 +3,11 @@
 # FISC-22: POST /v1/fisc/invoice/intent    → calcula nota sem salvar
 # FISC-23: POST /v1/fisc/invoice/confirm   → confirma nota, baixa estoque, registra no caixa
 # FISC-24: GET  /v1/fisc/invoice/<numero>  → busca nota por número
-# FISC-MOD2-02: RBAC em estoque (baixa via confirm)
-# FISC-MOD2-03: RBAC em fiscal (invoice)
 
 from flask import Blueprint, request, jsonify
 from database import get_connection
 from datetime import datetime
-from auth import requer_papel
+from auth import requer_auth
 
 invoice_bp = Blueprint("invoice", __name__)
 
@@ -18,7 +16,7 @@ invoice_bp = Blueprint("invoice", __name__)
 # FISC-22 — POST /invoice/intent (calcular intenção de nota)
 # ─────────────────────────────────────────────────────────
 @invoice_bp.route("/invoice/intent", methods=["POST"])
-@requer_papel("fiscal.intent")
+@requer_auth
 def calcular_intencao():
     """
     Calcula os valores de uma nota fiscal SEM salvar no banco.
@@ -59,7 +57,7 @@ def calcular_intencao():
             continue
 
         p         = dict(produto)
-        aliquota  = p.get("aliquota_imposto", 0)
+        aliquota  = p.get("aliquota", p.get("aliquota_imposto", 0))
         vb        = p["preco_base"] * qtd
         vi        = vb * aliquota
         vt        = vb + vi
@@ -107,7 +105,7 @@ def calcular_intencao():
 # FISC-23 — POST /invoice/confirm (confirmar nota)
 # ─────────────────────────────────────────────────────────
 @invoice_bp.route("/invoice/confirm", methods=["POST"])
-@requer_papel("fiscal.confirm", "estoque.saida")
+@requer_auth
 def confirmar_nota():
     """
     Confirma a nota fiscal: valida estoque, baixa estoque, salva nota e registra no caixa.
@@ -163,7 +161,7 @@ def confirmar_nota():
                 "message": f"Estoque insuficiente para SKU '{sku}'. Disponível: {estoque_atual}, necessário: {qtd}."
             }), 422
 
-        aliquota = p.get("aliquota_imposto", 0)
+        aliquota = p.get("aliquota", p.get("aliquota_imposto", 0))
         vb = p["preco_base"] * qtd
         vi = vb * aliquota
         vt = vb + vi
@@ -205,7 +203,7 @@ def confirmar_nota():
                 (item["quantidade"], item["sku"])
             )
             cursor.execute("""
-                INSERT INTO estoque (sku, tipo, quantidade, motivo, data_movimentacao)
+                INSERT INTO estoque_mov (sku, tipo, quantidade, motivo, data_mov)
                 VALUES (?, 'saida', ?, ?, ?)
             """, (item["sku"], item["quantidade"], f"Emissão NF {numero}", agora))
 
@@ -243,7 +241,7 @@ def confirmar_nota():
 # FISC-24 — GET /invoice/<numero> (buscar nota por número)
 # ─────────────────────────────────────────────────────────
 @invoice_bp.route("/invoice/<string:numero>", methods=["GET"])
-@requer_papel("fiscal.ler")
+@requer_auth
 def buscar_nota(numero):
     """
     Retorna uma nota fiscal com todos os seus itens e totais.
