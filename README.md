@@ -30,15 +30,20 @@ Fiscal-Finance/
 └── run_web.bat          # Inicializador automático do sistema
 ```
 
-## ⚙️ Como Executar
+## ⚙️ Guia de Instalação e Execução (Versão Web)
 
-O projeto já está configurado para rodar de maneira muito simples no Windows:
+O projeto foi migrado para uma arquitetura Web e já está configurado para rodar de maneira simples no Windows. A documentação e os arquivos legados (Desktop/PHP) não são mais utilizados na execução principal.
 
-1. Dê um duplo-clique no arquivo `run_web.bat`.
+### 📋 Pré-requisitos
+- **Python 3.8+** instalado (certifique-se de marcar a opção "Add Python to PATH" durante a instalação no Windows).
+
+### 🚀 Instalação Rápida (Windows)
+
+1. Dê um duplo-clique no arquivo `run_web.bat` na raiz do repositório.
 2. O script vai automaticamente:
-   - Instalar dependências necessárias (como o `flask` e `flask-cors`).
-   - Subir o servidor da API.
-   - Abrir o sistema no seu navegador (geralmente em `http://localhost:5000`).
+   - Verificar a instalação do Python e instalar dependências (`flask`, `flask-cors`, etc.).
+   - Subir o servidor da API Flask na porta 5000.
+   - Abrir a interface web (frontend) no seu navegador padrão.
 
 ### Login Padrão
 Para testar, você pode usar os seguintes dados fictícios de acesso já cadastrados:
