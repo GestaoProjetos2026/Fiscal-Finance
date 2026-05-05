@@ -234,3 +234,51 @@ def resumo_caixa_publico():
         },
         "message": "Resumo financeiro gerado."
     }), 200
+# ────────────────────────────────────────────────────────────────
+# GET /v1/public/fisc/history/<string:sku>
+# FISC-MOD1-03 — Retorna histórico de movimentações para Service Desk
+# ────────────────────────────────────────────────────────────────
+@public_bp.route("/public/fisc/history/<string:sku>", methods=["GET"])
+def historico_publico(sku):
+    """
+    Consulta pública do histórico de movimentações por SKU.
+    Requer header: X-API-KEY: <chave>
+    """
+    if not _validar_api_key():
+        return _erro_nao_autorizado()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Verifica se o produto existe
+    cursor.execute("SELECT sku, nome FROM produtos WHERE sku = ?", (sku,))
+    produto = cursor.fetchone()
+
+    if not produto:
+        conn.close()
+        return jsonify({
+            "status": "error",
+            "data": None,
+            "message": f"Produto com SKU '{sku}' não encontrado."
+        }), 404
+
+    # Busca todas as movimentações (entrada e saída)
+    cursor.execute("""
+        SELECT tipo, quantidade, motivo, data_mov
+        FROM estoque_mov
+        WHERE sku = ?
+        ORDER BY data_mov DESC
+    """, (sku,))
+    
+    historico = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify({
+        "status": "success",
+        "data": {
+            "sku": produto["sku"],
+            "nome": produto["nome"],
+            "historico": historico
+        },
+        "message": "Histórico de movimentações consultado com sucesso."
+    }), 200
